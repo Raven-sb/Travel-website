@@ -88,6 +88,10 @@ Nếu chat báo lỗi "Không mở được phiên trò chuyện", kiểm tra l�
 Nếu newsletter/chat báo lỗi `PGRST202 ... function ... not found`, bạn chưa chạy
 lại `supabase/schema.sql` sau bản cập nhật này.
 
+Nếu admin trả lời nhưng khách không thấy câu trả lời, chạy lại `supabase/schema.sql`
+(bản mới gắn `customer_uid` cho tin nhắn admin). File SQL cũng tự sửa các tin trả lời
+cũ bị vô hình. Sau đó reload trang khách để polling/Realtime tải lại.
+
 ## 7. Đưa lên GitHub Pages
 
 1. Push code lên GitHub (remote đã trỏ tới `Raven-sb/Travel-website`).

@@ -391,7 +391,9 @@ begin
   end if;
   -- Tối đa 8 tin nhắn / khách / phút.
   if (select count(*) from public.messages m
-       where m.customer_uid = v_uid and m.created_at > now() - interval '1 minute') >= 8 then
+       where m.customer_uid = v_uid
+         and m.sender = 'customer'
+         and m.created_at > now() - interval '1 minute') >= 8 then
     raise exception 'Bạn gửi tin nhắn hơi nhanh. Vui lòng đợi một chút.';
   end if;
 
@@ -418,6 +420,8 @@ language plpgsql security definer set search_path = public
 as $$
 declare
   v_body text := btrim(coalesce(p_body, ''));
+  v_name text := btrim(coalesce(p_name, ''));
+  v_customer_uid uuid;
   v_id uuid;
 begin
   if not public.is_admin() then
@@ -427,19 +431,43 @@ begin
     raise exception 'Tin nhắn phải từ 1 đến 2000 ký tự';
   end if;
 
+  -- Quan trọng: gắn uid của khách vào tin admin để RLS cho khách thấy tin trả lời.
+  select m.customer_uid into v_customer_uid
+  from public.messages m
+  where m.thread = p_thread and m.customer_uid is not null
+  order by m.created_at asc
+  limit 1;
+
+  if v_customer_uid is null then
+    raise exception 'Không tìm thấy khách của cuộc hội thoại này';
+  end if;
+
   insert into public.messages (thread, sender, customer_uid, author_name, body)
-  values (p_thread, 'admin', null, coalesce(nullif(btrim(coalesce(p_name, '')), ''), 'Admin'), v_body)
+  values (p_thread, 'admin', v_customer_uid, coalesce(nullif(v_name, ''), 'Admin'), v_body)
   returning id into v_id;
 
   return jsonb_build_object(
     'id', v_id, 'thread', p_thread, 'sender', 'admin',
-    'author_name', coalesce(nullif(btrim(coalesce(p_name, '')), ''), 'Admin'), 'body', v_body
+    'author_name', coalesce(nullif(v_name, ''), 'Admin'), 'body', v_body
   );
 end;
 $$;
 
 revoke all on function public.send_admin_reply(text, text, text) from public, anon;
 grant execute on function public.send_admin_reply(text, text, text) to authenticated;
+
+-- Sửa các câu trả lời cũ bị vô hình do customer_uid = null.
+update public.messages a
+set customer_uid = c.customer_uid
+from (
+  select distinct on (thread) thread, customer_uid
+  from public.messages
+  where customer_uid is not null
+  order by thread, created_at asc
+) c
+where a.thread = c.thread
+  and a.customer_uid is null
+  and a.sender = 'admin';
 
 -- 8c. Đăng ký nhận tin -----------------------------------------------------
 
