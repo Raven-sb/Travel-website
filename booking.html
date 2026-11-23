@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Đặt tour – Vietnam4trip</title>
+  <meta name="description" content="Hoàn tất đặt tour Vietnam4trip trong 3 bước: thông tin liên hệ, phương thức thanh toán và xác nhận tức thì." />
+  <meta name="theme-color" content="#0f4a3c" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="booking">
+  <div id="site-header"></div>
+
+  <main>
+    <section class="booking-hero">
+      <div class="container">
+        <nav class="breadcrumb breadcrumb--dark" aria-label="Breadcrumb">
+          <a href="index.html" data-i18n="common.home"></a>
+          <span>/</span>
+          <a href="tours.html" data-i18n="nav.tours"></a>
+          <span>/</span>
+          <span data-i18n="book.title"></span>
+        </nav>
+        <h1 data-i18n="book.title"></h1>
+        <p data-i18n="book.sub"></p>
+
+        <div class="progress-steps" id="progressSteps">
+          <div class="progress-step is-active" data-step="1">
+            <span class="progress-step__dot">1</span>
+            <span data-i18n="book.step1"></span>
+          </div>
+          <span class="progress-line" aria-hidden="true"></span>
+          <div class="progress-step" data-step="2">
+            <span class="progress-step__dot">2</span>
+            <span data-i18n="book.step2"></span>
+          </div>
+          <span class="progress-line" aria-hidden="true"></span>
+          <div class="progress-step" data-step="3">
+            <span class="progress-step__dot">3</span>
+            <span data-i18n="book.step3"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="booking-page">
+      <div class="container">
+        <div class="booking-empty" id="bookingEmpty" hidden>
+          <div class="booking-empty__ico"><span data-icon="compass" data-icon-size="26"></span></div>
+          <h1 data-i18n="book.noTour"></h1>
+          <p data-i18n="book.noTourSub"></p>
+          <a class="btn btn--primary" href="tours.html" data-i18n="book.browseTours"></a>
+        </div>
+
+        <div class="booking-layout" id="bookingLayout" hidden>
+          <div class="booking-forms">
+            <form id="bookingForm" novalidate>
+              <!-- Step 1: contact -->
+              <div class="form-step is-active" data-form-step="1">
+                <div class="form-card">
+                  <h2 data-i18n="book.contactTitle"></h2>
+                  <p class="form-card__sub" data-i18n="book.contactSub"></p>
+
+                  <div class="form-grid">
+                    <div class="field field--full">
+                      <label for="contactName" data-i18n="book.fullName"></label>
+                      <input id="contactName" name="fullName" type="text" autocomplete="name" maxlength="80" data-i18n-ph="book.fullNamePh" />
+                      <span class="field-error"></span>
+                    </div>
+                    <div class="field">
+                      <label for="contactEmail" data-i18n="book.email"></label>
+                      <input id="contactEmail" name="email" type="email" autocomplete="email" data-i18n-ph="book.emailPh" />
+                      <span class="field-error"></span>
+                    </div>
+                    <div class="field">
+                      <label for="contactPhone" data-i18n="book.phone"></label>
+                      <input id="contactPhone" name="phone" type="tel" autocomplete="tel" data-i18n-ph="book.phonePh" />
+                      <span class="field-error"></span>
+                    </div>
+                    <div class="field">
+                      <label for="contactCountry" data-i18n="book.country"></label>
+                      <select id="contactCountry" name="country">
+                        <option value="vn" data-i18n="country.vn"></option>
+                        <option value="us" data-i18n="country.us"></option>
+                        <option value="uk" data-i18n="country.uk"></option>
+                        <option value="au" data-i18n="country.au"></option>
+                        <option value="jp" data-i18n="country.jp"></option>
+                        <option value="kr" data-i18n="country.kr"></option>
+                        <option value="fr" data-i18n="country.fr"></option>
+                        <option value="de" data-i18n="country.de"></option>
+                        <option value="other" data-i18n="country.other"></option>
+                      </select>
+                    </div>
+                    <div class="field field--full">
+                      <label for="contactRequests">
+                        <span data-i18n="book.requests"></span>
+                        <small data-i18n="common.optional"></small>
+                      </label>
+                      <textarea id="contactRequests" name="requests" rows="3" data-i18n-ph="book.requestsPh"></textarea>
+                    </div>
+                  </div>
+
+                  <div class="form-actions">
+                    <a class="btn btn--ghost" href="tours.html" data-i18n="book.back"></a>
+                    <button class="btn btn--primary" type="submit">
+                      <span data-i18n="book.continue"></span>
+                      <span data-icon="arrow" data-icon-size="16"></span>
+                    </button>
+                  </div>
+                  <p class="secure-note">
+                    <span data-icon="lock" data-icon-size="15"></span>
+                    <span data-i18n="book.secureNote"></span>
+                  </p>
+                </div>
+              </div>
+
+              <!-- Step 2: payment -->
+              <div class="form-step" data-form-step="2">
+                <div class="form-card">
+                  <h2 data-i18n="book.paymentTitle"></h2>
+                  <p class="form-card__sub" data-i18n="book.paymentSub"></p>
+
+                  <div class="payment-options">
+                    <label class="pay-option">
+                      <input type="radio" name="payment" value="later" checked />
+                      <div class="pay-option__body">
+                        <div class="pay-option__title">
+                          <span data-icon="wallet" data-icon-size="17"></span>
+                          <span data-i18n="book.payLater"></span>
+                        </div>
+                        <p class="pay-option__desc" data-i18n="book.payLaterDesc"></p>
+                      </div>
+                    </label>
+                    <label class="pay-option">
+                      <input type="radio" name="payment" value="card" />
+                      <div class="pay-option__body">
+                        <div class="pay-option__title">
+                          <span data-icon="card" data-icon-size="17"></span>
+                          <span data-i18n="book.payCard"></span>
+                        </div>
+                        <p class="pay-option__desc" data-i18n="book.payCardDesc"></p>
+                      </div>
+                    </label>
+                    <label class="pay-option">
+                      <input type="radio" name="payment" value="transfer" />
+                      <div class="pay-option__body">
+                        <div class="pay-option__title">
+                          <span data-icon="bank" data-icon-size="17"></span>
+                          <span data-i18n="book.payTransfer"></span>
+                        </div>
+                        <p class="pay-option__desc" data-i18n="book.payTransferDesc"></p>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div class="card-fields" id="cardFields">
+                    <div class="field field--full">
+                      <label for="cardNumber" data-i18n="book.cardNumber"></label>
+                      <input id="cardNumber" type="text" inputmode="numeric" autocomplete="cc-number" maxlength="19" data-i18n-ph="book.cardNumberPh" />
+                      <span class="field-error"></span>
+                    </div>
+                    <div class="field field--full">
+                      <label for="cardName" data-i18n="book.cardName"></label>
+                      <input id="cardName" type="text" autocomplete="cc-name" data-i18n-ph="book.cardNamePh" />
+                      <span class="field-error"></span>
+                    </div>
+                    <div class="field">
+                      <label for="cardExp" data-i18n="book.cardExp"></label>
+                      <input id="cardExp" type="text" inputmode="numeric" autocomplete="cc-exp" maxlength="5" data-i18n-ph="book.cardExpPh" />
+                      <span class="field-error"></span>
+                    </div>
+                    <div class="field">
+                      <label for="cardCvc" data-i18n="book.cardCvc"></label>
+                      <input id="cardCvc" type="text" inputmode="numeric" autocomplete="cc-csc" maxlength="4" />
+                      <span class="field-error"></span>
+                    </div>
+                  </div>
+
+                  <div class="promo-block">
+                    <label class="filter-label" for="promoInput" data-i18n="book.promo"></label>
+                    <div class="promo-row">
+                      <input id="promoInput" type="text" autocomplete="off" data-i18n-ph="book.promoPh" />
+                      <button class="btn btn--ghost" id="promoBtn" type="button" data-i18n="book.apply"></button>
+                    </div>
+                    <p class="promo-hint">VIETNAM10</p>
+                  </div>
+                </div>
+
+                <div class="form-card">
+                  <label class="check-line" id="termsLine">
+                    <input type="checkbox" id="termsBox" />
+                    <span data-i18n="book.terms"></span>
+                  </label>
+                  <p class="field-error" id="termsError"></p>
+
+                  <div class="form-actions">
+                    <button class="btn btn--ghost" type="button" id="backBtn" data-i18n="book.back"></button>
+                    <button class="btn btn--primary" type="submit" data-i18n="book.confirm"></button>
+                  </div>
+                  <p class="secure-note">
+                    <span data-icon="lock" data-icon-size="15"></span>
+                    <span data-i18n="book.secureNote"></span>
+                  </p>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <aside class="summary-card" id="summaryCard">
+            <h2 data-i18n="book.summary"></h2>
+            <div id="summaryTour"></div>
+
+            <div class="summary-divider"></div>
+            <div class="summary-date">
+              <label for="bookDate" data-i18n="book.date"></label>
+              <input type="date" id="bookDate" />
+            </div>
+
+            <div class="summary-guests">
+              <div class="qty-row">
+                <div class="qty-row__label" data-i18n="book.adults"></div>
+                <div class="qty">
+                  <button type="button" data-bstep="adults" data-dir="-1" aria-label="−">−</button>
+                  <span id="bookAdults">2</span>
+                  <button type="button" data-bstep="adults" data-dir="1" aria-label="+">+</button>
+                </div>
+              </div>
+              <div class="qty-row">
+                <div>
+                  <div class="qty-row__label" data-i18n="book.children"></div>
+                  <div class="qty-row__hint" data-i18n="tour.childrenPrice"></div>
+                </div>
+                <div class="qty">
+                  <button type="button" data-bstep="children" data-dir="-1" aria-label="−">−</button>
+                  <span id="bookChildren">0</span>
+                  <button type="button" data-bstep="children" data-dir="1" aria-label="+">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="summary-divider"></div>
+            <div class="sum-rows" id="sumRows"></div>
+            <div class="summary-divider"></div>
+            <div class="sum-rows" id="sumTotals"></div>
+            <div class="sum-total">
+              <span data-i18n="book.total"></span>
+              <strong id="bookTotal"></strong>
+            </div>
+            <p class="sum-taxes" data-i18n="book.taxesIncluded"></p>
+
+            <ul class="summary-trust">
+              <li><span data-icon="shield" data-icon-size="14"></span><span data-i18n="common.cancelFree"></span></li>
+              <li><span data-icon="lock" data-icon-size="14"></span><span data-i18n="book.secureNote"></span></li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="success-wrap" id="successWrap" hidden>
+      <div class="container">
+        <div class="success-card" id="successCard"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/api-client.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/booking.js"></script>
+</body>
+</html>

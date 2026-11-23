@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tất cả hành trình – Vietnam4trip</title>
+  <meta name="description" content="Bộ sưu tập 11 tour tuyển chọn khắp Việt Nam: Hạ Long, Sa Pa, Hà Giang, Hội An, Huế, Đà Nẵng, Nha Trang, Đà Lạt, Phú Quốc, miền Tây, Ninh Bình." />
+  <meta name="theme-color" content="#0f4a3c" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="tours">
+  <div id="site-header"></div>
+
+  <main>
+    <section class="page-hero">
+      <img class="page-hero__bg" src="assets/img/halong.jpg" alt="Vịnh Hạ Long nhìn từ trên cao" fetchpriority="high" />
+      <div class="container">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <a href="index.html" data-i18n="common.home"></a>
+          <span>/</span>
+          <span data-i18n="nav.tours"></span>
+        </nav>
+        <p class="eyebrow eyebrow--light" data-i18n="tours.heroEyebrow"></p>
+        <h1 data-i18n="tours.heroTitle"></h1>
+        <p data-i18n="tours.heroSub"></p>
+      </div>
+    </section>
+
+    <section class="tours-page">
+      <div class="container tours-layout">
+        <aside class="filters" id="filtersPanel" aria-label="Bộ lọc tour">
+          <div class="filters-head">
+            <h2>
+              <span data-icon="sliders" data-icon-size="18"></span>
+              <span data-i18n="tours.filters"></span>
+            </h2>
+            <button class="filters-close" id="filtersClose" type="button" aria-label="Đóng bộ lọc">
+              <span data-icon="x" data-icon-size="20"></span>
+            </button>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="filterSearch" data-i18n="tours.search"></label>
+            <div class="filter-search">
+              <span data-icon="compass" data-icon-size="16"></span>
+              <input type="search" id="filterSearch" autocomplete="off" data-i18n-ph="tours.searchPh" />
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label" data-i18n="tours.region"></span>
+            <div class="region-pills" role="group" aria-label="Miền">
+              <button class="region-pill is-active" type="button" data-region="all" data-i18n="region.all"></button>
+              <button class="region-pill" type="button" data-region="north" data-i18n="region.north"></button>
+              <button class="region-pill" type="button" data-region="central" data-i18n="region.central"></button>
+              <button class="region-pill" type="button" data-region="south" data-i18n="region.south"></button>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="filterDest" data-i18n="tours.dest"></label>
+            <select class="filter-select" id="filterDest"></select>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label" data-i18n="tours.type"></span>
+            <div class="check-list">
+              <label class="check"><input type="checkbox" name="type" value="nature" /><span data-i18n="type.nature"></span></label>
+              <label class="check"><input type="checkbox" name="type" value="culture" /><span data-i18n="type.culture"></span></label>
+              <label class="check"><input type="checkbox" name="type" value="beach" /><span data-i18n="type.beach"></span></label>
+              <label class="check"><input type="checkbox" name="type" value="adventure" /><span data-i18n="type.adventure"></span></label>
+              <label class="check"><input type="checkbox" name="type" value="luxury" /><span data-i18n="type.luxury"></span></label>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label" data-i18n="tours.duration"></span>
+            <div class="check-list">
+              <label class="check"><input type="radio" name="duration" value="" checked /><span data-i18n="dur.all"></span></label>
+              <label class="check"><input type="radio" name="duration" value="1" /><span data-i18n="dur.1"></span></label>
+              <label class="check"><input type="radio" name="duration" value="2-3" /><span data-i18n="dur.2-3"></span></label>
+              <label class="check"><input type="radio" name="duration" value="4" /><span data-i18n="dur.4"></span></label>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label" data-i18n="tours.budget"></span>
+            <div class="check-list">
+              <label class="check"><input type="radio" name="budget" value="" checked /><span data-i18n="priceOpt.all"></span></label>
+              <label class="check"><input type="radio" name="budget" value="under1" /><span data-i18n="priceOpt.under1"></span></label>
+              <label class="check"><input type="radio" name="budget" value="1-3" /><span data-i18n="priceOpt.1-3"></span></label>
+              <label class="check"><input type="radio" name="budget" value="3-5" /><span data-i18n="priceOpt.3-5"></span></label>
+              <label class="check"><input type="radio" name="budget" value="over5" /><span data-i18n="priceOpt.over5"></span></label>
+            </div>
+          </div>
+
+          <button class="filter-reset" id="resetFilters" type="button">
+            <span data-icon="x" data-icon-size="15"></span>
+            <span data-i18n="tours.reset"></span>
+          </button>
+          <button class="btn btn--primary filters-apply" id="applyFilters" type="button" data-i18n="tours.applyFilters"></button>
+        </aside>
+
+        <div class="tours-results">
+          <div class="toolbar">
+            <p class="results-count" id="resultsCount" aria-live="polite"></p>
+            <div class="toolbar__right">
+              <button class="btn btn--ghost btn--sm filters-toggle" id="filtersToggle" type="button" aria-controls="filtersPanel" aria-expanded="false">
+                <span data-icon="sliders" data-icon-size="16"></span>
+                <span data-i18n="tours.mobileFilter"></span>
+              </button>
+              <div class="sort-wrap">
+                <span class="toolbar__label" data-i18n="tours.sort"></span>
+                <select class="sort-select" id="sortSelect" aria-label="Sắp xếp">
+                  <option value="recommended" data-i18n="sort.recommended"></option>
+                  <option value="priceAsc" data-i18n="sort.priceAsc"></option>
+                  <option value="priceDesc" data-i18n="sort.priceDesc"></option>
+                  <option value="rating" data-i18n="sort.rating"></option>
+                  <option value="duration" data-i18n="sort.duration"></option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="tours-grid" id="toursGrid" aria-live="polite"></div>
+
+          <div class="empty-state" id="emptyState" hidden>
+            <div class="empty-state__ico"><span data-icon="compass" data-icon-size="26"></span></div>
+            <h3 data-i18n="tours.emptyTitle"></h3>
+            <p data-i18n="tours.emptySub"></p>
+            <button class="btn btn--primary" id="emptyClear" type="button" data-i18n="tours.emptyBtn"></button>
+          </div>
+        </div>
+      </div>
+      <button class="filters-backdrop" id="filtersBackdrop" type="button" tabindex="-1" aria-hidden="true"></button>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/api-client.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/tours.js"></script>
+</body>
+</html>

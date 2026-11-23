@@ -1,0 +1,13 @@
+{
+  "name": "vietnam4trip",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vietnam4trip tour website + admin backend",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}

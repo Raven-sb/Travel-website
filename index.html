@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vietnam4trip – Tour Việt Nam cho khách quốc tế &amp; nội địa</title>
+  <meta name="description" content="Tour riêng thiết kế bởi người bản địa cho du khách quốc tế và Việt Nam: Hạ Long, Sa Pa, Hội An, Hà Giang, Phú Quốc. Lịch trình linh hoạt, giá minh bạch, hỗ trợ 24/7." />
+  <meta name="theme-color" content="#0f4a3c" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="home">
+  <div id="site-header"></div>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <img class="hero__bg" src="assets/img/hero.jpg" alt="Toàn cảnh đảo Titov trên vịnh Hạ Long" fetchpriority="high" />
+      <div class="container hero__inner">
+        <p class="hero__eyebrow" data-i18n="hero.eyebrow"></p>
+        <h1 class="hero__title" data-i18n="hero.title"></h1>
+        <p class="hero__sub" data-i18n="hero.sub"></p>
+
+        <ul class="hero__trust">
+          <li><span data-icon="star" data-icon-size="15"></span><span data-i18n="hero.trust"></span></li>
+          <li><span data-icon="phone" data-icon-size="15"></span><span data-i18n="hero.trust2"></span></li>
+          <li><span data-icon="shield" data-icon-size="15"></span><span data-i18n="hero.trust3"></span></li>
+        </ul>
+
+        <form class="search-card" id="heroSearch" action="tours.html" method="get">
+          <div class="search-field">
+            <span data-icon="pin" data-icon-size="20"></span>
+            <div class="search-field__body">
+              <label class="search-field__label" for="heroDest" data-i18n="search.where"></label>
+              <select id="heroDest" name="dest"></select>
+            </div>
+          </div>
+          <div class="search-field">
+            <span data-icon="compass" data-icon-size="20"></span>
+            <div class="search-field__body">
+              <label class="search-field__label" for="heroType" data-i18n="tours.type"></label>
+              <select id="heroType" name="type"></select>
+            </div>
+          </div>
+          <div class="search-field">
+            <span data-icon="calendar" data-icon-size="20"></span>
+            <div class="search-field__body">
+              <label class="search-field__label" for="heroDate" data-i18n="search.date"></label>
+              <input type="date" id="heroDate" name="date" aria-label="Ngày khởi hành" />
+            </div>
+          </div>
+          <button class="btn btn--primary" type="submit">
+            <span data-i18n="search.btn"></span>
+            <span data-icon="arrow" data-icon-size="16"></span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-band" aria-label="Vietnam4trip in numbers">
+      <div class="container stats-grid">
+        <div class="stat">
+          <div class="stat__num" data-stat="25000" data-stat-suffix="+">25.000+</div>
+          <div class="stat__label" data-i18n="stats.travelers"></div>
+        </div>
+        <div class="stat">
+          <div class="stat__num" data-stat="11">11</div>
+          <div class="stat__label" data-i18n="stats.destinations"></div>
+        </div>
+        <div class="stat">
+          <div class="stat__num" data-stat="300" data-stat-suffix="+">300+</div>
+          <div class="stat__label" data-i18n="stats.itineraries"></div>
+        </div>
+        <div class="stat">
+          <div class="stat__num" data-stat="4.9" data-stat-rating="1">4,9/5</div>
+          <div class="stat__label" data-i18n="stats.rating"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Featured tours -->
+    <section class="section" id="featured">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-head__text">
+            <p class="eyebrow" data-i18n="featured.eyebrow"></p>
+            <h2 data-i18n="featured.title"></h2>
+            <p data-i18n="featured.sub"></p>
+          </div>
+          <a class="link-arrow" href="tours.html">
+            <span data-i18n="featured.all"></span>
+            <span data-icon="arrow" data-icon-size="16"></span>
+          </a>
+        </div>
+
+        <div class="tabs" id="featuredTabs" role="tablist"></div>
+        <div class="tours-grid" id="featuredGrid"></div>
+      </div>
+    </section>
+
+    <!-- Destinations -->
+    <section class="section section--sand" id="destinations">
+      <div class="container">
+        <div class="section-head section-head--center">
+          <div class="section-head__text">
+            <p class="eyebrow" data-i18n="dest.eyebrow"></p>
+            <h2 data-i18n="dest.title"></h2>
+            <p data-i18n="dest.sub"></p>
+          </div>
+        </div>
+        <div class="dest-grid" id="destGrid"></div>
+      </div>
+    </section>
+
+    <!-- Why us -->
+    <section class="section" id="about">
+      <div class="container why-grid">
+        <div class="why-media reveal">
+          <img class="why-img--main" src="assets/img/hoian.jpg" alt="Tiệm đèn lồng rực rỡ ở phố cổ Hội An" loading="lazy" />
+          <img class="why-img--small" src="assets/img/mekong.jpg" alt="Thuyền nhỏ trên sông nước miền Tây" loading="lazy" />
+          <div class="why-badge">
+            <strong data-i18n="why.badge"></strong>
+            <span data-i18n="why.badgeSub"></span>
+          </div>
+        </div>
+
+        <div class="why-copy">
+          <div class="section-head">
+            <div class="section-head__text">
+              <p class="eyebrow" data-i18n="why.eyebrow"></p>
+              <h2 data-i18n="why.title"></h2>
+              <p data-i18n="why.sub"></p>
+            </div>
+          </div>
+
+          <div class="feature-list">
+            <div class="feature reveal">
+              <div class="feature__icon" data-icon="users" data-icon-size="22"></div>
+              <div>
+                <h3 data-i18n="why.f1"></h3>
+                <p data-i18n="why.f1d"></p>
+              </div>
+            </div>
+            <div class="feature reveal">
+              <div class="feature__icon" data-icon="compass" data-icon-size="22"></div>
+              <div>
+                <h3 data-i18n="why.f2"></h3>
+                <p data-i18n="why.f2d"></p>
+              </div>
+            </div>
+            <div class="feature reveal">
+              <div class="feature__icon" data-icon="tag" data-icon-size="22"></div>
+              <div>
+                <h3 data-i18n="why.f3"></h3>
+                <p data-i18n="why.f3d"></p>
+              </div>
+            </div>
+            <div class="feature reveal">
+              <div class="feature__icon" data-icon="phone" data-icon-size="22"></div>
+              <div>
+                <h3 data-i18n="why.f4"></h3>
+                <p data-i18n="why.f4d"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Steps -->
+    <section class="section steps-section">
+      <div class="container">
+        <div class="section-head section-head--center">
+          <div class="section-head__text">
+            <p class="eyebrow" data-i18n="steps.eyebrow"></p>
+            <h2 data-i18n="steps.title"></h2>
+            <p data-i18n="steps.sub"></p>
+          </div>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step reveal">
+            <div class="step__num">01</div>
+            <h3 data-i18n="steps.s1"></h3>
+            <p data-i18n="steps.s1d"></p>
+          </div>
+          <div class="step reveal">
+            <div class="step__num">02</div>
+            <h3 data-i18n="steps.s2"></h3>
+            <p data-i18n="steps.s2d"></p>
+          </div>
+          <div class="step reveal">
+            <div class="step__num">03</div>
+            <h3 data-i18n="steps.s3"></h3>
+            <p data-i18n="steps.s3d"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="section section--sand">
+      <div class="container">
+        <div class="section-head section-head--center">
+          <div class="section-head__text">
+            <p class="eyebrow" data-i18n="testi.eyebrow"></p>
+            <h2 data-i18n="testi.title"></h2>
+            <p data-i18n="testi.sub"></p>
+          </div>
+        </div>
+        <div class="testi-grid" id="testiGrid"></div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="section cta-section">
+      <div class="container">
+        <div class="cta-card">
+          <img class="cta-card__bg" src="assets/img/sapa.jpg" alt="Ruộng bậc thang ở Sa Pa" loading="lazy" />
+          <h2 data-i18n="cta.title"></h2>
+          <p data-i18n="cta.sub"></p>
+          <div class="cta-card__actions">
+            <a class="btn btn--primary" href="index.html#contact">
+              <span data-i18n="cta.btn"></span>
+              <span data-icon="arrow" data-icon-size="16"></span>
+            </a>
+            <a class="btn btn--outline-light" href="tel:+84935549164">
+              <span data-icon="phone" data-icon-size="16"></span>
+              <span data-i18n="cta.call"></span>
+            </a>
+          </div>
+          <p class="cta-card__note">Zalo · WhatsApp · 24/7</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/api-client.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/home.js"></script>
+</body>
+</html>

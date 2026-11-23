@@ -1,0 +1,229 @@
+-- Vietnam4trip — Supabase schema (chạy toàn bộ file này trong SQL Editor)
+-- Gồm: bảng dữ liệu, phân quyền RLS, hàm tạo đơn (tính giá phía server), hàm cấp quyền admin.
+
+create table if not exists public.tours (
+  id text primary key,
+  price integer not null check (price between 100000 and 200000000),
+  title_vi text not null default ''
+);
+
+insert into public.tours (id, price, title_vi) values
+  ('halong-cruise-2n1d', 2890000, 'Du thuyền Hạ Long 2N1Đ: Ngủ giữa di sản'),
+  ('sapa-valley-3n2d', 3590000, 'Sa Pa & thung lũng Mường Hoa 3N2Đ'),
+  ('hoian-lanterns-4n3d', 4990000, 'Hội An – Đèn lồng & làng nghề 4N3Đ'),
+  ('hue-heritage-2n1d', 2190000, 'Di sản cố đô Huế 2N1Đ'),
+  ('danang-bana-3n2d', 3290000, 'Đà Nẵng – Bà Nà & biển Mỹ Khê 3N2Đ'),
+  ('phuquoc-island-4n3d', 6490000, 'Phú Quốc: Biển xanh & hoàng hôn 4N3Đ'),
+  ('nhatrang-bay-3n2d', 3890000, 'Nha Trang – Vịnh Ninh Vân 3N2Đ'),
+  ('ninhbinh-day-1d', 890000, 'Ninh Bình: Tràng An – Hang Múa 1 ngày'),
+  ('hagiang-loop-3n2d', 2990000, 'Hà Giang Loop: Mã Pí Lèng huyền thoại 3N2Đ'),
+  ('mekong-delta-2n1d', 1990000, 'Đồng bằng sông Cửu Long 2N1Đ'),
+  ('dalat-highlands-3n2d', 2790000, 'Đà Lạt: Săn mây & thông reo 3N2Đ')
+on conflict (id) do nothing;
+
+create table if not exists public.tour_overrides (
+  tour_id text primary key references public.tours(id) on delete cascade,
+  price integer check (price between 100000 and 200000000),
+  active boolean,
+  featured boolean,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.bookings (
+  code text primary key,
+  created_at timestamptz not null default now(),
+  tour_id text not null,
+  tour_title text not null,
+  date date not null,
+  adults integer not null check (adults between 1 and 20),
+  children integer not null default 0 check (children between 0 and 10),
+  subtotal integer not null,
+  discount integer not null default 0,
+  promo text not null default '',
+  total integer not null,
+  payment text not null default 'later' check (payment in ('later', 'card')),
+  status text not null default 'new' check (status in ('new', 'confirmed', 'done', 'cancelled')),
+  note text not null default '',
+  contact_name text not null,
+  contact_email text not null,
+  contact_phone text not null,
+  contact_country text not null default 'vn',
+  contact_requests text not null default ''
+);
+
+create index if not exists bookings_created_at_idx on public.bookings (created_at desc);
+
+create table if not exists public.admins (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  email text not null,
+  display_name text not null default '',
+  created_at timestamptz not null default now()
+);
+
+-- Phân quyền ------------------------------------------------------------
+
+create or replace function public.is_admin() returns boolean
+language sql stable security definer set search_path = public
+as $$ select exists (select 1 from public.admins a where a.user_id = auth.uid()) $$;
+
+alter table public.tours enable row level security;
+alter table public.tour_overrides enable row level security;
+alter table public.bookings enable row level security;
+alter table public.admins enable row level security;
+
+drop policy if exists "tours read" on public.tours;
+create policy "tours read" on public.tours for select using (true);
+
+drop policy if exists "overrides read" on public.tour_overrides;
+create policy "overrides read" on public.tour_overrides for select using (true);
+
+drop policy if exists "overrides write" on public.tour_overrides;
+create policy "overrides write" on public.tour_overrides for all
+  using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "bookings read admin" on public.bookings;
+create policy "bookings read admin" on public.bookings for select using (public.is_admin());
+
+drop policy if exists "bookings update admin" on public.bookings;
+create policy "bookings update admin" on public.bookings for update
+  using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "bookings delete admin" on public.bookings;
+create policy "bookings delete admin" on public.bookings for delete using (public.is_admin());
+
+drop policy if exists "admins read" on public.admins;
+create policy "admins read" on public.admins for select using (public.is_admin() or user_id = auth.uid());
+
+drop policy if exists "admins delete others" on public.admins;
+create policy "admins delete others" on public.admins for delete
+  using (public.is_admin() and user_id <> auth.uid());
+
+-- Hàm tạo đơn: khách ẩn danh gọi trực tiếp, giá do DB tính lại --------
+
+create or replace function public.create_booking(
+  p_tour_id text,
+  p_date date,
+  p_adults integer,
+  p_children integer,
+  p_payment text,
+  p_promo text,
+  p_name text,
+  p_email text,
+  p_phone text,
+  p_country text default 'vn',
+  p_requests text default ''
+) returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_price integer;
+  v_active boolean;
+  v_title text;
+  v_subtotal integer;
+  v_discount integer;
+  v_total integer;
+  v_code text;
+  v_promo text := upper(trim(coalesce(p_promo, '')));
+  v_name text := trim(coalesce(p_name, ''));
+  v_email text := trim(coalesce(p_email, ''));
+  v_phone text := trim(coalesce(p_phone, ''));
+begin
+  if length(v_name) < 2 or length(v_name) > 80 then
+    raise exception 'Vui lòng nhập họ tên (2–80 ký tự)';
+  end if;
+  if v_email !~ '^[^\s@]+@[^\s@]+\.[^\s@]{2,}$' then
+    raise exception 'Email không hợp lệ';
+  end if;
+  if regexp_replace(v_phone, '[\s().-]', '', 'g') !~ '^\+?\d{8,15}$' then
+    raise exception 'Số điện thoại không hợp lệ';
+  end if;
+  if p_adults is null or p_adults < 1 or p_adults > 20 then
+    raise exception 'Số người lớn không hợp lệ';
+  end if;
+  if p_children is null or p_children < 0 or p_children > 10 then
+    raise exception 'Số trẻ em không hợp lệ';
+  end if;
+  if p_payment not in ('later', 'card') then
+    raise exception 'Hình thức thanh toán không hợp lệ';
+  end if;
+  if p_date is null or p_date < current_date + 1 then
+    raise exception 'Ngày khởi hành phải từ ngày mai trở đi';
+  end if;
+
+  select coalesce(o.price, t.price), coalesce(o.active, true), t.title_vi
+  into v_price, v_active, v_title
+  from public.tours t
+  left join public.tour_overrides o on o.tour_id = t.id
+  where t.id = p_tour_id;
+
+  if v_price is null then
+    raise exception 'Tour không tồn tại';
+  end if;
+  if not v_active then
+    raise exception 'Tour này hiện không mở bán';
+  end if;
+
+  v_subtotal := p_adults * v_price + p_children * round(v_price * 0.6)::integer;
+  v_discount := case when v_promo = 'VIETNAM10' then round(v_subtotal * 0.1)::integer else 0 end;
+  v_total := v_subtotal - v_discount;
+
+  loop
+    v_code := 'V4T-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+    exit when not exists (select 1 from public.bookings b where b.code = v_code);
+  end loop;
+
+  insert into public.bookings (
+    code, tour_id, tour_title, date, adults, children,
+    subtotal, discount, promo, total, payment,
+    contact_name, contact_email, contact_phone, contact_country, contact_requests
+  ) values (
+    v_code, p_tour_id, v_title, p_date, p_adults, p_children,
+    v_subtotal, v_discount, case when v_discount > 0 then 'VIETNAM10' else '' end, v_total, p_payment,
+    v_name, v_email, v_phone, coalesce(nullif(trim(p_country), ''), 'vn'), trim(coalesce(p_requests, ''))
+  );
+
+  return jsonb_build_object(
+    'code', v_code,
+    'total', v_total,
+    'date', p_date,
+    'adults', p_adults,
+    'children', p_children
+  );
+end;
+$$;
+
+revoke all on function public.create_booking(text, date, integer, integer, text, text, text, text, text, text, text) from public;
+grant execute on function public.create_booking(text, date, integer, integer, text, text, text, text, text, text, text) to anon, authenticated;
+
+-- Hàm cấp quyền admin cho một tài khoản đã tồn tại trong Authentication --
+
+create or replace function public.grant_admin(p_email text, p_display_name text default '')
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_uid uuid;
+  v_email text := lower(trim(coalesce(p_email, '')));
+begin
+  if not public.is_admin() then
+    raise exception 'Bạn không có quyền thực hiện thao tác này';
+  end if;
+  select u.id into v_uid from auth.users u where lower(u.email) = v_email;
+  if v_uid is null then
+    raise exception 'Chưa có tài khoản với email %. Hãy tạo người dùng trong Supabase → Authentication → Users trước.', v_email;
+  end if;
+  insert into public.admins (user_id, email, display_name)
+  values (v_uid, v_email, coalesce(nullif(trim(p_display_name), ''), split_part(v_email, '@', 1)))
+  on conflict (user_id) do update set display_name = excluded.display_name;
+  return jsonb_build_object('user_id', v_uid, 'email', v_email);
+end;
+$$;
+
+revoke all on function public.grant_admin(text, text) from public, anon;
+grant execute on function public.grant_admin(text, text) to authenticated;
+
+-- Việc cần làm sau khi chạy file này (xem supabase/README.md):
+-- 1. Authentication → Users → Add user: tạo tài khoản admin đầu tiên (email + mật khẩu, bật Auto Confirm).
+-- 2. Chạy lệnh sau (thay email) để cấp quyền quản trị cho tài khoản đó:
+--    insert into public.admins (user_id, email, display_name)
+--    select id, email, 'Chủ Vietnam4trip' from auth.users where email = 'email-cua-ban@example.com';

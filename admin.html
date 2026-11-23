@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Quản trị – Vietnam4trip</title>
+  <meta name="theme-color" content="#07251e" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body data-page="admin">
+
+  <section class="adm-login" id="admLogin">
+    <div class="adm-login__card">
+      <div class="adm-login__brand">
+        <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true">
+          <rect width="48" height="48" rx="14" fill="#0f4a3c" />
+          <path d="M10 31c5-8 9-8 14 0s9 8 14 0" stroke="#f7f1e8" stroke-width="3.2" fill="none" stroke-linecap="round" />
+          <path d="M14 24.5c4-6 7.5-6 11.5 0" stroke="#e4603f" stroke-width="3.2" fill="none" stroke-linecap="round" />
+          <circle cx="34" cy="14.5" r="3.4" fill="#d9a441" />
+        </svg>
+        <span><strong>Vietnam4trip</strong><small>Khu quản trị</small></span>
+      </div>
+      <h1>Đăng nhập quản trị</h1>
+      <p class="adm-login__sub">Quản lý tour và đơn đăng ký của khách hàng. Khu vực nội bộ, vui lòng không chia sẻ tài khoản.</p>
+      <form id="admLoginForm" novalidate>
+        <label class="adm-login__label" for="admUserInput">Email hoặc tên đăng nhập</label>
+        <input class="adm-login__input" id="admUserInput" type="text" autocomplete="username" placeholder="Email hoặc tên đăng nhập" />
+        <label class="adm-login__label" for="admPass">Mật khẩu</label>
+        <input class="adm-login__input" id="admPass" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu quản trị" />
+        <p class="adm-login__err" id="admLoginErr" hidden>Mật khẩu không đúng. Vui lòng thử lại.</p>
+        <button class="btn btn--primary btn--block" type="submit">Đăng nhập</button>
+      </form>
+      <a class="adm-login__back" href="index.html">← Về trang khách</a>
+    </div>
+  </section>
+
+  <div class="adm-shell" id="admShell" hidden>
+    <aside class="adm-side" id="admSide">
+      <div class="adm-side__brand">
+        <svg viewBox="0 0 48 48" width="38" height="38" aria-hidden="true">
+          <rect width="48" height="48" rx="14" fill="#f7f1e8" />
+          <path d="M10 31c5-8 9-8 14 0s9 8 14 0" stroke="#0f4a3c" stroke-width="3.2" fill="none" stroke-linecap="round" />
+          <path d="M14 24.5c4-6 7.5-6 11.5 0" stroke="#e4603f" stroke-width="3.2" fill="none" stroke-linecap="round" />
+          <circle cx="34" cy="14.5" r="3.4" fill="#d9a441" />
+        </svg>
+        <span><strong>Vietnam4trip</strong><small>Admin</small></span>
+      </div>
+      <nav class="adm-nav" aria-label="Điều hướng quản trị">
+        <button class="adm-nav__link is-active" type="button" data-view="dashboard"><span class="adm-nav__ico" data-adm-icon="grid"></span>Dashboard</button>
+        <button class="adm-nav__link" type="button" data-view="bookings"><span class="adm-nav__ico" data-adm-icon="inbox"></span>Đơn đăng ký<em class="adm-nav__badge" id="admNewBadge" hidden>0</em></button>
+        <button class="adm-nav__link" type="button" data-view="tours"><span class="adm-nav__ico" data-adm-icon="map"></span>Tour</button>
+        <button class="adm-nav__link" type="button" data-view="accounts"><span class="adm-nav__ico" data-adm-icon="users"></span>Tài khoản</button>
+      </nav>
+      <div class="adm-side__foot">
+        <a class="adm-side__link" href="index.html" target="_blank"><span class="adm-nav__ico" data-adm-icon="external"></span>Xem trang khách</a>
+        <button class="adm-side__link" type="button" id="admLogout"><span class="adm-nav__ico" data-adm-icon="logout"></span>Đăng xuất</button>
+      </div>
+    </aside>
+
+    <div class="adm-main">
+      <header class="adm-top">
+        <button class="adm-burger" id="admBurger" type="button" aria-label="Mở menu" aria-controls="admSide" aria-expanded="false"><span></span><span></span><span></span></button>
+        <div class="adm-top__titles">
+          <h1 id="admTitle">Dashboard</h1>
+          <p id="admSub">Tổng quan hoạt động kinh doanh</p>
+        </div>
+        <div class="adm-top__right">
+          <span class="adm-who" id="admWho"></span>
+          <span class="adm-today" id="admToday"></span>
+          <a class="btn btn--ghost btn--sm" href="index.html" target="_blank">Xem trang</a>
+        </div>
+      </header>
+      <main class="adm-view" id="admView"></main>
+    </div>
+    <button class="adm-backdrop" id="admBackdrop" type="button" tabindex="-1" aria-hidden="true"></button>
+  </div>
+
+  <div class="adm-modal" id="admModal" hidden>
+    <div class="adm-modal__card" role="dialog" aria-modal="true" aria-labelledby="admModalTitle" id="admModalCard"></div>
+  </div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/api-client.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
