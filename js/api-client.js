@@ -187,6 +187,7 @@
       createdAt: r.created_at,
       adminRead: !!r.admin_read,
       customerRead: !!r.customer_read,
+      deletedAt: r.deleted_at || null,
       mine: r.sender === "customer"
     };
   }
@@ -419,7 +420,8 @@
   chat.list = async function (thread) {
     await ensureSession();
     const { data, error } = await client.from("messages")
-      .select("*").eq("thread", thread).order("created_at", { ascending: true }).limit(300);
+      .select("*").eq("thread", thread).is("deleted_at", null)
+      .order("created_at", { ascending: true }).limit(300);
     check(error, "Không tải được tin nhắn");
     return (data || []).map(messageFromRow);
   };
@@ -474,14 +476,28 @@
   chat.adminDeleteMessage = async function (id) {
     await requireAdmin();
     const { error } = await client.rpc("delete_message", { p_id: id });
-    check(error, "Không xóa được tin nhắn");
+    check(error, "Không ẩn được tin nhắn");
     return true;
   };
 
   chat.adminDeleteThread = async function (thread) {
     await requireAdmin();
     const { error } = await client.rpc("delete_thread", { p_thread: thread });
-    check(error, "Không xóa được cuộc hội thoại");
+    check(error, "Không ẩn được cuộc hội thoại");
+    return true;
+  };
+
+  chat.adminRestoreMessage = async function (id) {
+    await requireAdmin();
+    const { error } = await client.rpc("restore_message", { p_id: id });
+    check(error, "Không hiện lại được tin nhắn");
+    return true;
+  };
+
+  chat.adminRestoreThread = async function (thread) {
+    await requireAdmin();
+    const { error } = await client.rpc("restore_thread", { p_thread: thread });
+    check(error, "Không hiện lại được cuộc hội thoại");
     return true;
   };
 

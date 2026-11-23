@@ -33,6 +33,7 @@
     map: '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/>',
     users: '<path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="3.5"/><path d="M17 11a3.5 3.5 0 1 0 0-7"/><path d="M19.5 20v-1.5a4 4 0 0 0-3-3.8"/>',
     trash: '<path d="M4.5 7h15"/><path d="M9 7V4.8h6V7"/><path d="M6.5 7l.9 12.2a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/>',
+    eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     chat: '<path d="M12 4.2a7.8 7.8 0 1 0 0 15.6c.9 0 1.8-.1 2.6-.4L19 21l-.4-4.1a7.8 7.8 0 0 0-6.6-12.7Z"/><path d="M8.6 12h.01M12 12h.01M15.4 12h.01"/>',
@@ -130,7 +131,7 @@
   }
 
   function updateMsgBadge() {
-    const n = state.messages.filter(function (m) { return m.sender === "customer" && !m.adminRead; }).length;
+    const n = state.messages.filter(function (m) { return m.sender === "customer" && !m.adminRead && !m.deletedAt; }).length;
     if (!els.msgBadge) return;
     els.msgBadge.hidden = n === 0;
     els.msgBadge.textContent = n > 99 ? "99+" : String(n);
@@ -201,6 +202,7 @@
       } else if (kind === "update") {
         const idx = state.messages.findIndex(function (x) { return x.id === m.id; });
         if (idx > -1) state.messages[idx] = m;
+        else state.messages.push(m);
       } else if (kind === "delete") {
         const idx = state.messages.findIndex(function (x) { return x.id === m.id; });
         const thread = idx > -1 ? state.messages[idx].thread : m.thread;
@@ -212,7 +214,19 @@
       }
       updateMsgBadge();
       if (state.view === "messages") refresh();
-      if (kind === "insert" && state.chatThread === m.thread && !els.modal.hidden) openChat(m.thread);
+      if (state.chatThread === m.thread && !els.modal.hidden) {
+        if (kind === "insert") {
+          refreshChatModal();
+          REMOTE.chat.adminMarkRead(m.thread).then(function () {
+            state.messages.forEach(function (x) { if (x.thread === m.thread) x.adminRead = true; });
+            updateMsgBadge();
+            if (state.view === "messages") renderView();
+          }).catch(function () { /* ignore */ });
+        } else if (kind === "update") {
+          // Ẩn / hiện lại tin nhắn cũng là UPDATE → vẽ lại modal.
+          refreshChatModal();
+        }
+      }
     });
   }
 
@@ -496,15 +510,20 @@
   function chatThreads() {
     const map = {};
     state.messages.forEach(function (m) {
-      const cur = map[m.thread] || { thread: m.thread, last: m, unread: 0, name: "Khách", count: 0 };
+      const cur = map[m.thread] || { thread: m.thread, last: null, lastAny: m, unread: 0, name: "Khách", count: 0, hidden: 0 };
       if (m.sender === "customer") cur.name = m.authorName || cur.name;
-      if (!cur.last || String(m.createdAt) > String(cur.last.createdAt)) cur.last = m;
-      if (m.sender === "customer" && !m.adminRead) cur.unread++;
+      if (String(m.createdAt) > String(cur.lastAny.createdAt)) cur.lastAny = m;
+      if (m.deletedAt) {
+        cur.hidden++;
+      } else {
+        if (!cur.last || String(m.createdAt) > String(cur.last.createdAt)) cur.last = m;
+        if (m.sender === "customer" && !m.adminRead) cur.unread++;
+      }
       cur.count++;
       map[m.thread] = cur;
     });
     return Object.keys(map).map(function (k) { return map[k]; })
-      .sort(function (a, b) { return String(b.last.createdAt).localeCompare(String(a.last.createdAt)); });
+      .sort(function (a, b) { return String(b.lastAny.createdAt).localeCompare(String(a.lastAny.createdAt)); });
   }
 
   function messagesHTML() {
@@ -513,17 +532,20 @@
       return '<section class="adm-panel">' + emptyHTML("Chưa có tin nhắn", "Khách gửi tin từ nút trò chuyện trên trang web sẽ xuất hiện tại đây.") + "</section>";
     }
     const rows = list.map(function (t) {
-      const preview = String(t.last.body || "").slice(0, 90);
+      const allHidden = !t.last;
+      const preview = allHidden ? "(Tất cả tin nhắn đã ẩn)" : String(t.last.body || "").slice(0, 90);
       return (
-        '<tr data-chat-thread="' + V.esc(t.thread) + '">' +
+        '<tr data-chat-thread="' + V.esc(t.thread) + '"' + (allHidden ? ' class="adm-chat-row--hidden"' : "") + ">" +
           "<td><strong>" + V.esc(t.name) + "</strong>" +
-            '<span class="adm-sub">' + t.count + " tin nhắn</span></td>" +
-          "<td>" + V.esc((t.last.sender === "admin" ? "Bạn: " : "") + preview) + "</td>" +
-          "<td>" + fdatetime(t.last.createdAt) + "</td>" +
+            '<span class="adm-sub">' + t.count + " tin nhắn" + (t.hidden ? " · " + t.hidden + " ẩn" : "") + "</span></td>" +
+          "<td>" + V.esc((!allHidden && t.last.sender === "admin" ? "Bạn: " : "") + preview) + "</td>" +
+          "<td>" + fdatetime(t.lastAny.createdAt) + "</td>" +
           "<td>" + (t.unread ? '<span class="adm-badge adm-badge--new">' + t.unread + " mới</span>" : "—") + "</td>" +
           '<td class="adm-chat-actions">' +
             '<button class="adm-row-btn" type="button" data-chat-thread="' + V.esc(t.thread) + '">Mở</button>' +
-            '<button class="adm-row-btn adm-row-btn--danger" type="button" data-chat-del-thread="' + V.esc(t.thread) + '" aria-label="Xóa hội thoại">' + icon("trash", 14) + "</button>" +
+            (allHidden
+              ? '<button class="adm-row-btn" type="button" data-chat-restore-thread="' + V.esc(t.thread) + '" aria-label="Hiện lại hội thoại" title="Hiện lại hội thoại">' + icon("eye", 14) + "</button>"
+              : '<button class="adm-row-btn adm-row-btn--danger" type="button" data-chat-del-thread="' + V.esc(t.thread) + '" aria-label="Ẩn hội thoại" title="Ẩn hội thoại với khách">' + icon("trash", 14) + "</button>") +
           "</td>" +
         "</tr>"
       );
@@ -541,13 +563,18 @@
   }
 
   function chatModalHTML(thread) {
-    const msgs = state.messages.filter(function (m) { return m.thread === thread; }).slice(-100);
+    const all = state.messages.filter(function (m) { return m.thread === thread; });
+    const msgs = all.slice(-100);
+    const allHidden = all.length > 0 && all.every(function (m) { return !!m.deletedAt; });
     const name = (msgs.find(function (m) { return m.sender === "customer"; }) || {}).authorName || "Khách";
     const bubbles = msgs.map(function (m) {
-      return '<div class="adm-chat-bubble' + (m.sender === "admin" ? " is-admin" : "") + '">' +
-        "<small>" + V.esc(m.authorName) + " · " + fdatetime(m.createdAt) + "</small>" +
+      const hidden = !!m.deletedAt;
+      return '<div class="adm-chat-bubble' + (m.sender === "admin" ? " is-admin" : "") + (hidden ? " is-hidden" : "") + '">' +
+        "<small>" + V.esc(m.authorName) + " · " + fdatetime(m.createdAt) + (hidden ? " · đã ẩn với khách" : "") + "</small>" +
         "<p>" + V.esc(m.body) + "</p>" +
-        '<button class="adm-chat-del" type="button" data-chat-del="' + V.esc(m.id) + '" aria-label="Xóa tin nhắn này">' + icon("trash", 13) + "</button>" +
+        (hidden
+          ? '<button class="adm-chat-del adm-chat-del--restore" type="button" data-chat-restore="' + V.esc(m.id) + '" aria-label="Hiện lại tin nhắn này" title="Hiện lại với khách">' + icon("eye", 13) + "</button>"
+          : '<button class="adm-chat-del" type="button" data-chat-del="' + V.esc(m.id) + '" aria-label="Ẩn tin nhắn này" title="Ẩn với khách">' + icon("trash", 13) + "</button>") +
         "</div>";
     }).join("");
     return (
@@ -562,10 +589,24 @@
       "</div>" +
       '<div class="adm-modal__foot">' +
         '<button class="btn btn--ghost btn--sm" type="button" data-close>Đóng</button>' +
-        '<button class="btn btn--danger btn--sm" type="button" data-chat-del-thread>' + icon("trash", 15) + " Xóa hội thoại</button>" +
+        (allHidden
+          ? '<button class="btn btn--ghost btn--sm" type="button" data-chat-restore-thread>' + icon("eye", 15) + " Hiện lại hội thoại</button>"
+          : '<button class="btn btn--danger btn--sm" type="button" data-chat-del-thread>' + icon("trash", 15) + " Ẩn hội thoại</button>") +
         '<button class="btn btn--primary btn--sm" type="button" data-chat-send>' + icon("send", 15) + " Gửi trả lời</button>" +
       "</div>"
     );
+  }
+
+  // Vẽ lại modal chat nhưng giữ nội dung đang gõ dở trong ô trả lời.
+  function refreshChatModal() {
+    if (!state.chatThread || els.modal.hidden) return;
+    const draft = byId("admChatText");
+    const text = draft ? draft.value : "";
+    openModal(chatModalHTML(state.chatThread));
+    const input = byId("admChatText");
+    if (input) input.value = text;
+    const log = els.modalCard.querySelector(".adm-chat-log");
+    if (log) log.scrollTop = log.scrollHeight;
   }
 
   function openChat(thread) {
@@ -598,34 +639,64 @@
     }
   }
 
-  async function deleteChatMessage(id) {
+  function afterChatMutation() {
+    updateMsgBadge();
+    refreshChatModal();
+    if (state.view === "messages") renderView();
+  }
+
+  function setThreadDeleted(thread, deleted) {
+    const stamp = deleted ? new Date().toISOString() : null;
+    state.messages.forEach(function (m) { if (m.thread === thread) m.deletedAt = stamp; });
+  }
+
+  async function hideChatMessage(id) {
     if (!REMOTE || !id) return;
-    if (!window.confirm("Xóa tin nhắn này? Thao tác không thể hoàn tác.")) return;
+    if (!window.confirm("Ẩn tin nhắn này với khách? Bạn có thể hiện lại bất cứ lúc nào.")) return;
     try {
       await REMOTE.chat.adminDeleteMessage(id);
-      state.messages = state.messages.filter(function (m) { return m.id !== id; });
-      updateMsgBadge();
-      if (state.chatThread) {
-        if (state.messages.some(function (m) { return m.thread === state.chatThread; })) openChat(state.chatThread);
-        else { state.chatThread = null; closeModal(); }
-      }
-      if (state.view === "messages") renderView();
-      V.toast("Đã xóa tin nhắn");
+      const m = state.messages.find(function (x) { return x.id === id; });
+      if (m) m.deletedAt = new Date().toISOString();
+      afterChatMutation();
+      V.toast("Đã ẩn tin nhắn");
     } catch (err) {
       V.toast(err.message);
     }
   }
 
-  async function deleteChatThread(thread) {
+  async function restoreChatMessage(id) {
+    if (!REMOTE || !id) return;
+    try {
+      await REMOTE.chat.adminRestoreMessage(id);
+      const m = state.messages.find(function (x) { return x.id === id; });
+      if (m) m.deletedAt = null;
+      afterChatMutation();
+      V.toast("Đã hiện lại tin nhắn");
+    } catch (err) {
+      V.toast(err.message);
+    }
+  }
+
+  async function hideChatThread(thread) {
     if (!REMOTE || !thread) return;
-    if (!window.confirm("Xóa toàn bộ cuộc hội thoại này? Thao tác không thể hoàn tác.")) return;
+    if (!window.confirm("Ẩn toàn bộ cuộc hội thoại này với khách? Bạn có thể hiện lại bất cứ lúc nào.")) return;
     try {
       await REMOTE.chat.adminDeleteThread(thread);
-      state.messages = state.messages.filter(function (m) { return m.thread !== thread; });
-      updateMsgBadge();
-      if (state.chatThread === thread) { state.chatThread = null; closeModal(); }
-      if (state.view === "messages") renderView();
-      V.toast("Đã xóa cuộc hội thoại");
+      setThreadDeleted(thread, true);
+      afterChatMutation();
+      V.toast("Đã ẩn cuộc hội thoại");
+    } catch (err) {
+      V.toast(err.message);
+    }
+  }
+
+  async function restoreChatThread(thread) {
+    if (!REMOTE || !thread) return;
+    try {
+      await REMOTE.chat.adminRestoreThread(thread);
+      setThreadDeleted(thread, false);
+      afterChatMutation();
+      V.toast("Đã hiện lại cuộc hội thoại");
     } catch (err) {
       V.toast(err.message);
     }
@@ -1362,8 +1433,11 @@
     els.view.addEventListener("click", function (e) {
       if (e.target.closest("[data-retry]")) { load(); return; }
 
+      const restoreThreadBtn = e.target.closest("[data-chat-restore-thread]");
+      if (restoreThreadBtn) { restoreChatThread(restoreThreadBtn.dataset.chatRestoreThread); return; }
+
       const delThreadBtn = e.target.closest("[data-chat-del-thread]");
-      if (delThreadBtn) { deleteChatThread(delThreadBtn.dataset.chatDelThread); return; }
+      if (delThreadBtn) { hideChatThread(delThreadBtn.dataset.chatDelThread); return; }
 
       const chatRow = e.target.closest("[data-chat-thread]");
       if (chatRow) { openChat(chatRow.dataset.chatThread); return; }
@@ -1438,9 +1512,12 @@
 
       if (e.target.closest("[data-acc-create]")) { createAccount(); return; }
       if (e.target.closest("[data-acc-reset]")) { resetAccountPassword(); return; }
+      const restoreMsgBtn = e.target.closest("[data-chat-restore]");
+      if (restoreMsgBtn) { restoreChatMessage(restoreMsgBtn.dataset.chatRestore); return; }
       const delMsgBtn = e.target.closest("[data-chat-del]");
-      if (delMsgBtn) { deleteChatMessage(delMsgBtn.dataset.chatDel); return; }
-      if (e.target.closest("[data-chat-del-thread]")) { deleteChatThread(state.chatThread); return; }
+      if (delMsgBtn) { hideChatMessage(delMsgBtn.dataset.chatDel); return; }
+      if (e.target.closest("[data-chat-restore-thread]")) { restoreChatThread(state.chatThread); return; }
+      if (e.target.closest("[data-chat-del-thread]")) { hideChatThread(state.chatThread); return; }
       if (e.target.closest("[data-chat-send]")) { sendChatReply(); return; }
       if (e.target.closest("[data-content-save]")) { saveTourContent(); return; }
 

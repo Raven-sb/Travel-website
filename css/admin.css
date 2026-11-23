@@ -877,6 +877,15 @@ body.adm-side-open .adm-burger span:nth-child(3) { top: 20px; transform: rotate(
 .adm-chat-del:hover { background: rgba(228, 96, 63, 0.12); }
 .adm-chat-bubble.is-admin .adm-chat-del { color: #ffd9cc; }
 .adm-chat-bubble.is-admin .adm-chat-del:hover { background: rgba(255, 255, 255, 0.18); }
+/* Tin bị ẩn (xóa mềm): admin vẫn đọc được, khách không thấy. */
+.adm-chat-bubble.is-hidden { opacity: 0.62; border-style: dashed; }
+.adm-chat-bubble.is-hidden small { font-style: italic; }
+.adm-chat-del--restore { color: var(--green, #0f4a3c); opacity: 1; }
+.adm-chat-del--restore:hover { background: rgba(15, 74, 60, 0.12); }
+.adm-chat-bubble.is-admin .adm-chat-del--restore { color: #d9f2e6; }
+.adm-chat-bubble.is-admin .adm-chat-del--restore:hover { background: rgba(255, 255, 255, 0.18); }
+.adm-chat-row--hidden td { opacity: 0.65; }
+.adm-chat-row--hidden .adm-chat-actions { opacity: 1; }
 .adm-chat-actions { display: flex; gap: 6px; align-items: center; }
 @media (hover: none) {
   .adm-chat-del { opacity: 0.75; }

@@ -94,8 +94,12 @@ create table if not exists public.messages (
   created_at timestamptz not null default now()
 );
 
+-- Xóa mềm: deleted_at khác null = tin bị ẩn với khách, admin vẫn thấy/hiện lại được.
+alter table public.messages add column if not exists deleted_at timestamptz;
+
 create index if not exists messages_thread_created_idx on public.messages (thread, created_at);
 create index if not exists messages_admin_unread_idx on public.messages (admin_read) where admin_read = false;
+create index if not exists messages_visible_idx on public.messages (thread, created_at) where deleted_at is null;
 
 -- 4b. Đăng ký nhận tin -----------------------------------------------------
 
@@ -163,7 +167,7 @@ create policy "admins delete others" on public.admins for delete
 -- INSERT không mở trực tiếp cho client mà đi qua RPC có giới hạn tần suất.
 drop policy if exists "messages read" on public.messages;
 create policy "messages read" on public.messages for select
-  using (public.is_admin() or customer_uid = auth.uid());
+  using (public.is_admin() or (customer_uid = auth.uid() and deleted_at is null));
 
 drop policy if exists "messages customer insert" on public.messages;
 drop policy if exists "messages admin insert" on public.messages;
@@ -463,7 +467,9 @@ $$;
 revoke all on function public.send_admin_reply(text, text, text) from public, anon;
 grant execute on function public.send_admin_reply(text, text, text) to authenticated;
 
--- 8b2. Admin xóa tin nhắn / xóa cả cuộc hội thoại ---------------------------
+-- 8b2. Admin ẩn / hiện lại tin nhắn (xóa mềm) ------------------------------
+-- delete_message / delete_thread chỉ đặt deleted_at, không xóa hẳn.
+-- restore_message / restore_thread bỏ deleted_at để hiện lại.
 
 create or replace function public.delete_message(p_id uuid)
 returns integer
@@ -474,7 +480,8 @@ begin
   if not public.is_admin() then
     raise exception 'Bạn không có quyền thực hiện thao tác này';
   end if;
-  delete from public.messages where id = p_id;
+  update public.messages set deleted_at = now()
+   where id = p_id and deleted_at is null;
   get diagnostics n = row_count;
   return n;
 end;
@@ -492,7 +499,8 @@ begin
   if not public.is_admin() then
     raise exception 'Bạn không có quyền thực hiện thao tác này';
   end if;
-  delete from public.messages where thread = p_thread;
+  update public.messages set deleted_at = now()
+   where thread = p_thread and deleted_at is null;
   get diagnostics n = row_count;
   return n;
 end;
@@ -500,6 +508,44 @@ $$;
 
 revoke all on function public.delete_thread(text) from public, anon;
 grant execute on function public.delete_thread(text) to authenticated;
+
+create or replace function public.restore_message(p_id uuid)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare n integer;
+begin
+  if not public.is_admin() then
+    raise exception 'Bạn không có quyền thực hiện thao tác này';
+  end if;
+  update public.messages set deleted_at = null
+   where id = p_id and deleted_at is not null;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+revoke all on function public.restore_message(uuid) from public, anon;
+grant execute on function public.restore_message(uuid) to authenticated;
+
+create or replace function public.restore_thread(p_thread text)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare n integer;
+begin
+  if not public.is_admin() then
+    raise exception 'Bạn không có quyền thực hiện thao tác này';
+  end if;
+  update public.messages set deleted_at = null
+   where thread = p_thread and deleted_at is not null;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+revoke all on function public.restore_thread(text) from public, anon;
+grant execute on function public.restore_thread(text) to authenticated;
 
 -- Sửa các câu trả lời cũ bị vô hình do customer_uid = null.
 update public.messages a

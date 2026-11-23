@@ -537,7 +537,7 @@
       try {
         const prevIds = {};
         messages.forEach(function (m) { prevIds[m.id] = true; });
-        messages = await api.chat.list(thread);
+        messages = (await api.chat.list(thread)).filter(function (m) { return !m.deletedAt; });
         if (!open && loadedOnce) {
           let added = 0;
           messages.forEach(function (m) {
@@ -568,7 +568,16 @@
             if (added && m.sender === "admin" && !open) { unread++; paintBadge(); }
           } else if (kind === "update") {
             const idx = messages.findIndex(function (x) { return x.id === m.id; });
-            if (idx > -1) messages[idx] = m;
+            if (m.deletedAt) {
+              // Tin bị admin ẩn → gỡ khỏi khung chat.
+              if (idx > -1) messages.splice(idx, 1);
+            } else if (idx > -1) {
+              messages[idx] = m;
+            } else {
+              // Tin được hiện lại → thêm vào, giữ đúng thứ tự thời gian.
+              messages.push(m);
+              messages.sort(function (a, b) { return String(a.createdAt).localeCompare(String(b.createdAt)); });
+            }
           } else if (kind === "delete") {
             messages = messages.filter(function (x) { return x.id !== m.id; });
           }
