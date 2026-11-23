@@ -535,7 +535,7 @@
         messages = await api.chat.list(thread);
         paint();
         note("");
-        if (open) await api.chat.markRead(thread);
+        if (open && messages.length) await api.chat.markRead(thread);
       } catch (err) {
         note(err && err.message ? err.message : "Không tải được tin nhắn.");
       }
