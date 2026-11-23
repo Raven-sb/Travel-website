@@ -8,6 +8,9 @@
   const url = String(conf.url || "").trim();
   const key = String(conf.anonKey || "").trim();
   const API = { enabled: false };
+  // Tài khoản quản trị tối cao — chỉ tài khoản này được xóa vĩnh viễn hội thoại.
+  // Đây chỉ là kiểm tra phía UI; database mới là nơi chặn thật (is_super_admin).
+  API.SUPER_ADMIN_EMAIL = "khanhquang94cva@gmail.com";
   window.V4T_API = API;
 
   if (!url || !key || !window.supabase || !window.supabase.createClient) return;
@@ -484,6 +487,14 @@
     await requireAdmin();
     const { error } = await client.rpc("restore_thread", { p_thread: thread });
     check(error, "Không hiện lại được cuộc hội thoại");
+    return true;
+  };
+
+  // Xóa vĩnh viễn hội thoại đã ẩn — DB chỉ cho phép quản trị tối cao.
+  chat.adminPurgeThread = async function (thread) {
+    await requireAdmin();
+    const { error } = await client.rpc("purge_thread", { p_thread: thread });
+    check(error, "Không xóa vĩnh viễn được cuộc hội thoại");
     return true;
   };
 

@@ -508,6 +508,11 @@
   }
 
   /* Messages -------------------------------------------------------------- */
+  function isSuperAdmin() {
+    const email = window.V4T_API && window.V4T_API.SUPER_ADMIN_EMAIL;
+    return !!(email && state.me && String(state.me.username || "").toLowerCase() === String(email).toLowerCase());
+  }
+
   function chatThreads() {
     const map = {};
     state.messages.forEach(function (m) {
@@ -560,7 +565,10 @@
           '<td class="adm-chat-actions">' +
             '<button class="adm-row-btn" type="button" data-chat-thread="' + V.esc(t.thread) + '">Mở</button>' +
             (showHidden
-              ? '<button class="adm-row-btn" type="button" data-chat-restore-thread="' + V.esc(t.thread) + '" aria-label="Hiện lại hội thoại" title="Hiện lại trong danh sách">' + icon("eye", 14) + "</button>"
+              ? '<button class="adm-row-btn" type="button" data-chat-restore-thread="' + V.esc(t.thread) + '" aria-label="Hiện lại hội thoại" title="Hiện lại trong danh sách">' + icon("eye", 14) + "</button>" +
+                (isSuperAdmin()
+                  ? '<button class="adm-row-btn adm-row-btn--danger" type="button" data-chat-purge-thread="' + V.esc(t.thread) + '" aria-label="Xóa vĩnh viễn hội thoại" title="Xóa vĩnh viễn (không thể khôi phục)">' + icon("trash", 14) + "</button>"
+                  : "")
               : '<button class="adm-row-btn adm-row-btn--danger" type="button" data-chat-del-thread="' + V.esc(t.thread) + '" aria-label="Ẩn hội thoại" title="Ẩn khỏi danh sách admin (khách vẫn thấy)">' + icon("trash", 14) + "</button>") +
           "</td>" +
         "</tr>"
@@ -601,7 +609,10 @@
       '<div class="adm-modal__foot">' +
         '<button class="btn btn--ghost btn--sm" type="button" data-close>Đóng</button>' +
         (allHidden
-          ? '<button class="btn btn--ghost btn--sm" type="button" data-chat-restore-thread>' + icon("eye", 15) + " Hiện lại hội thoại</button>"
+          ? '<button class="btn btn--ghost btn--sm" type="button" data-chat-restore-thread>' + icon("eye", 15) + " Hiện lại hội thoại</button>" +
+            (isSuperAdmin()
+              ? '<button class="btn btn--danger btn--sm" type="button" data-chat-purge-thread>' + icon("trash", 15) + " Xóa vĩnh viễn</button>"
+              : "")
           : '<button class="btn btn--danger btn--sm" type="button" data-chat-del-thread>' + icon("trash", 15) + " Ẩn hội thoại</button>") +
         '<button class="btn btn--primary btn--sm" type="button" data-chat-send>' + icon("send", 15) + " Gửi trả lời</button>" +
       "</div>"
@@ -681,6 +692,25 @@
       setThreadDeleted(thread, false);
       afterChatMutation();
       V.toast("Đã hiện lại hội thoại");
+    } catch (err) {
+      V.toast(err.message);
+    }
+  }
+
+  async function purgeChatThread(thread) {
+    if (!REMOTE || !thread || !isSuperAdmin()) return;
+    if (!window.confirm(
+      "XÓA VĨNH VIỄN toàn bộ hội thoại này?\n\n" +
+      "Dữ liệu sẽ mất vĩnh viễn, không thể khôi phục. Khách cũng sẽ không còn thấy tin nhắn. " +
+      "Chỉ nên dùng với hội thoại đã kết thúc."
+    )) return;
+    try {
+      await REMOTE.chat.adminPurgeThread(thread);
+      state.messages = state.messages.filter(function (m) { return m.thread !== thread; });
+      updateMsgBadge();
+      if (state.chatThread === thread) { state.chatThread = null; closeModal(); }
+      if (state.view === "messages") renderView();
+      V.toast("Đã xóa vĩnh viễn hội thoại");
     } catch (err) {
       V.toast(err.message);
     }
@@ -1417,6 +1447,9 @@
     els.view.addEventListener("click", function (e) {
       if (e.target.closest("[data-retry]")) { load(); return; }
 
+      const purgeThreadBtn = e.target.closest("[data-chat-purge-thread]");
+      if (purgeThreadBtn) { purgeChatThread(purgeThreadBtn.dataset.chatPurgeThread); return; }
+
       const restoreThreadBtn = e.target.closest("[data-chat-restore-thread]");
       if (restoreThreadBtn) { restoreChatThread(restoreThreadBtn.dataset.chatRestoreThread); return; }
 
@@ -1499,6 +1532,7 @@
 
       if (e.target.closest("[data-acc-create]")) { createAccount(); return; }
       if (e.target.closest("[data-acc-reset]")) { resetAccountPassword(); return; }
+      if (e.target.closest("[data-chat-purge-thread]")) { purgeChatThread(state.chatThread); return; }
       if (e.target.closest("[data-chat-restore-thread]")) { restoreChatThread(state.chatThread); return; }
       if (e.target.closest("[data-chat-del-thread]")) { hideChatThread(state.chatThread); return; }
       if (e.target.closest("[data-chat-send]")) { sendChatReply(); return; }

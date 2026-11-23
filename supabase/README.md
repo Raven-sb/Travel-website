@@ -79,6 +79,7 @@ Mở `index.html` (hoặc chạy `start.cmd` → http://localhost:8088) rồi ki
 | Khách bấm nút chat, gửi tin | Tin xuất hiện ngay trong `admin.html → Tin nhắn`, có badge chưa đọc |
 | Admin trả lời | Khách thấy câu trả lời ngay (Realtime; có polling dự phòng 5s) |
 | Admin ẩn hội thoại đã kết thúc | Hội thoại chuyển sang tab "Đã ẩn" cho gọn danh sách; khách VẪN thấy toàn bộ tin nhắn; bấm mắt để hiện lại |
+| Admin tối cao xóa vĩnh viễn | Chỉ tài khoản `khanhquang94cva@gmail.com` thấy nút "Xóa vĩnh viễn" trong tab "Đã ẩn"; xóa xong mất hẳn cả phía khách, không khôi phục được |
 | Admin đổi giá / ẩn tour | Khách đang mở trang thấy thay đổi ngay |
 | Admin → Tour → Chỉnh sửa | Sửa tiêu đề, ảnh, điểm nhấn, lịch trình, thư viện ảnh → khách thấy ngay |
 | Admin → Tour → Thêm tour | Tạo tour mới trên Supabase, hiển thị ngay cho khách (không sửa `data.js`) |

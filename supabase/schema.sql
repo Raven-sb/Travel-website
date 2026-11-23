@@ -115,6 +115,17 @@ create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path = public
 as $$ select exists (select 1 from public.admins a where a.user_id = auth.uid()) $$;
 
+-- Quản trị tối cao: chỉ tài khoản này được xóa vĩnh viễn hội thoại.
+create or replace function public.is_super_admin() returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.admins a
+    where a.user_id = auth.uid()
+      and lower(a.email) = 'khanhquang94cva@gmail.com'
+  )
+$$;
+
 alter table public.tours enable row level security;
 alter table public.tour_overrides enable row level security;
 alter table public.tour_content enable row level security;
@@ -179,7 +190,7 @@ create policy "messages admin update" on public.messages for update to authentic
 
 drop policy if exists "messages admin delete" on public.messages;
 create policy "messages admin delete" on public.messages for delete to authenticated
-  using (public.is_admin());
+  using (public.is_super_admin());
 
 -- Để Realtime gửi kèm toàn bộ dòng cũ khi DELETE (client xóa đúng tin).
 alter table public.messages replica identity full;
@@ -548,6 +559,32 @@ $$;
 
 revoke all on function public.restore_thread(text) from public, anon;
 grant execute on function public.restore_thread(text) to authenticated;
+
+-- Xóa VĨNH VIỄN hội thoại đã ẩn: chỉ quản trị tối cao, và chỉ khi toàn bộ
+-- tin của hội thoại đã được ẩn (deleted_at khác null). Không thể khôi phục.
+create or replace function public.purge_thread(p_thread text)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare n integer;
+begin
+  if not public.is_super_admin() then
+    raise exception 'Chỉ tài khoản quản trị tối cao mới được xóa vĩnh viễn';
+  end if;
+  if exists (
+    select 1 from public.messages
+    where thread = p_thread and deleted_at is null
+  ) then
+    raise exception 'Chỉ xóa vĩnh viễn được hội thoại đã ẩn toàn bộ';
+  end if;
+  delete from public.messages where thread = p_thread;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+revoke all on function public.purge_thread(text) from public, anon;
+grant execute on function public.purge_thread(text) to authenticated;
 
 -- Sửa các câu trả lời cũ bị vô hình do customer_uid = null.
 update public.messages a
