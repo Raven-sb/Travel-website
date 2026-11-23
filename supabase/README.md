@@ -105,3 +105,64 @@ lại `supabase/schema.sql` sau bản cập nhật này.
 - Sao lưu định kỳ: Table Editor → `bookings` / `messages` → Export CSV.
 - Muốn quay lại backend Node: xóa trống 2 chuỗi trong `js/supabase-config.js`
   (cần cài Node ≥ 22.5 và chạy `start.cmd`).
+
+## 9. Email thông báo (Edge Function + Resend)
+
+Luồng: khách đặt tour / đăng ký nhận tin → trigger `pg_net` → Edge Function
+`notify-email` → Resend gửi email. **Frontend không chứa service_role hay API key gửi mail.**
+
+### 9.1. Chuẩn bị Resend
+
+1. Đăng ký https://resend.com → **Domains** → thêm + xác thực domain của bạn.
+2. **API Keys → Create API key** (quyền **Sending access**), copy giá trị.
+
+### 9.2. Tạo webhook secret (chạy 1 lần trong SQL Editor)
+
+```sql
+select encode(gen_random_bytes(24), 'hex') as webhook_secret;
+```
+
+Copy chuỗi nhận được (gọi là `<WEBHOOK_SECRET>`). Rồi lưu cấu hình vào Vault
+(**chạy 1 lần**, thay giá trị cho đúng):
+
+```sql
+select vault.create_secret('https://qyoffpzcurecgnmgdzqn.supabase.co', 'v4t_site_url');
+select vault.create_secret('<WEBHOOK_SECRET>', 'v4t_webhook_secret');
+```
+
+> Nếu chạy lại bị lỗi `secret already exists`, dùng **SQL Editor → New query** và bỏ qua 2 dòng này.
+
+### 9.3. Deploy function & đặt secrets
+
+Cài Supabase CLI rồi trong thư mục dự án chạy:
+
+```bash
+supabase link --project-ref qyoffpzcurecgnmgdzqn
+supabase secrets set WEBHOOK_SECRET='<WEBHOOK_SECRET>' \
+  RESEND_API_KEY='re_xxx' \
+  MAIL_FROM='Vietnam4trip <no-reply@yourdomain.com>' \
+  ADMIN_EMAIL='email-nhan-don@example.com' \
+  SITE_URL='https://raven-sb.github.io/Travel-website'
+supabase functions deploy notify-email --no-verify-jwt
+```
+
+Không có CLI? Vào **Edge Functions → notify-email → Create a new function**, dán nội dung
+`supabase/functions/notify-email/index.ts`, rồi thêm các secret ở **Project Settings → Edge Functions → Secrets**.
+Ở tab **Configuration** của function, tắt **Verify JWT** (`verify_jwt = false`).
+
+⚠️ `<WEBHOOK_SECRET>` ở Vault và ở Edge Function secrets **phải cùng một chuỗi**.
+
+### 9.4. Tạo trigger
+
+**SQL Editor → New query** → dán toàn bộ `supabase/email-webhooks.sql` → **Run**.
+File này tạo trigger trên `bookings` và `subscribers`; chạy lại được.
+
+### 9.5. Kiểm tra
+
+- Đăng ký một email ở footer → hộp thư nhận email chào; `admin.html → Đăng ký nhận tin` thấy email.
+- Đặt một đơn thử → khách nhận xác nhận (có mã đặt chỗ), `ADMIN_EMAIL` nhận thông báo đơn mới.
+- Nếu không có email: xem log **Edge Functions → notify-email → Logs**, và kiểm tra
+  `select * from net._http_response order by id desc limit 5;`.
+
+Ghi chú: khách chat bằng phiên ẩn danh nên **không có email** để gửi thông báo tin nhắn.
+Nếu sau này cần tính năng đó, phải thu email khách trong khung chat và lưu vào `messages`.

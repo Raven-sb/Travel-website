@@ -1,0 +1,5 @@
+# Supabase CLI config — chỉ cần cho việc deploy Edge Function.
+# pg_net/webhook gọi function bằng x-webhook-secret, không dùng JWT của người dùng.
+
+[functions.notify-email]
+verify_jwt = false
