@@ -485,6 +485,8 @@
     let open = false;
     let unread = 0;
     let subscribed = false;
+    let subscribing = false;
+    let loadedOnce = false;
     let busy = false;
 
     try { nameInput.value = localStorage.getItem(LS_CHAT_NAME) || ""; } catch (e) { /* ignore */ }
@@ -532,7 +534,17 @@
 
     async function loadMessages() {
       try {
+        const prevIds = {};
+        messages.forEach(function (m) { prevIds[m.id] = true; });
         messages = await api.chat.list(thread);
+        if (!open && loadedOnce) {
+          let added = 0;
+          messages.forEach(function (m) {
+            if (m.sender === "admin" && !prevIds[m.id]) added++;
+          });
+          if (added) { unread += added; paintBadge(); }
+        }
+        loadedOnce = true;
         paint();
         note("");
         if (open && messages.length) await api.chat.markRead(thread);
@@ -541,23 +553,43 @@
       }
     }
 
-    function subscribe() {
-      if (subscribed) return;
-      subscribed = true;
-      api.chat.subscribe(thread, function (m, kind) {
-        if (kind === "insert") {
-          if (!messages.some(function (x) { return x.id === m.id; })) messages.push(m);
-          if (m.sender === "admin" && !open) { unread++; paintBadge(); }
-        } else if (kind === "update") {
-          const idx = messages.findIndex(function (x) { return x.id === m.id; });
-          if (idx > -1) messages[idx] = m;
-        }
-        paint();
-        if (open) api.chat.markRead(thread).catch(function () { /* ignore */ });
-      });
-      // Dự phòng khi Realtime không kết nối được.
-      window.setInterval(function () { if (!document.hidden && !busy) loadMessages(); }, 8000);
+    async function subscribe() {
+      if (subscribed || subscribing) return;
+      subscribing = true;
+      try {
+        await api.chat.subscribe(thread, function (m, kind) {
+          let added = false;
+          if (kind === "insert") {
+            if (!messages.some(function (x) { return x.id === m.id; })) {
+              messages.push(m);
+              added = true;
+            }
+            if (added && m.sender === "admin" && !open) { unread++; paintBadge(); }
+          } else if (kind === "update") {
+            const idx = messages.findIndex(function (x) { return x.id === m.id; });
+            if (idx > -1) messages[idx] = m;
+          }
+          paint();
+          if (open) api.chat.markRead(thread).catch(function () { /* ignore */ });
+        });
+        subscribed = true;
+        note("");
+      } catch (err) {
+        note("Chưa kết nối được tin nhắn trực tiếp. Sẽ tự thử lại.");
+      } finally {
+        subscribing = false;
+      }
     }
+
+    // Dự phòng: Realtime có thể bị mạng/proxy chặn, nên vẫn poll định kỳ.
+    window.setInterval(function () {
+      if (!subscribed && !subscribing) subscribe();
+      if (!document.hidden && !busy) loadMessages();
+    }, 5000);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) loadMessages();
+    });
+    window.addEventListener("focus", function () { loadMessages(); });
 
     fab.addEventListener("click", function () {
       if (!open) window.dispatchEvent(new CustomEvent("vv:contact:close"));
@@ -592,6 +624,7 @@
     });
 
     loadMessages();
+    subscribe();
   }
 
   function applyStatic() {

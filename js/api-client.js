@@ -24,6 +24,14 @@
   const STATUS_KEYS = ["new", "confirmed", "done", "cancelled"];
   const channels = {};
 
+  // Realtime cần JWT hiện tại để RLS biết auth.uid() là khách nào.
+  function syncRealtimeAuth(session) {
+    if (!session || !session.access_token) return;
+    if (client.realtime && typeof client.realtime.setAuth === "function") {
+      client.realtime.setAuth(session.access_token);
+    }
+  }
+
   function fail(message, status) {
     const err = new Error(message);
     if (status) err.status = status;
@@ -56,6 +64,7 @@
 
   async function currentAdmin() {
     const { data: sess } = await client.auth.getSession();
+    syncRealtimeAuth(sess && sess.session);
     const user = sess && sess.session ? sess.session.user : null;
     if (!user) return null;
     const { data, error } = await client.from("admins").select("*").eq("user_id", user.id).maybeSingle();
@@ -396,9 +405,13 @@
 
   async function ensureSession() {
     const { data: sess } = await client.auth.getSession();
-    if (sess && sess.session) return sess.session.user;
+    if (sess && sess.session) {
+      syncRealtimeAuth(sess.session);
+      return sess.session.user;
+    }
     const { data, error } = await client.auth.signInAnonymously();
     check(error, "Không mở được phiên trò chuyện. Hãy bật Allow anonymous sign-ins trong Supabase.");
+    syncRealtimeAuth(data && data.session);
     return data && data.session ? data.session.user : null;
   }
   chat.ensureSession = ensureSession;
@@ -458,7 +471,8 @@
     check(error, "Không cập nhật được tin nhắn");
   };
 
-  chat.subscribe = function (thread, onMessage) {
+  chat.subscribe = async function (thread, onMessage) {
+    await ensureSession();
     return channel("v4t-chat-" + thread, [
       {
         spec: { event: "INSERT", schema: "public", table: "messages", filter: "thread=eq." + thread },
@@ -471,7 +485,9 @@
     ]);
   };
 
-  chat.subscribeAdmin = function (onMessage) {
+  chat.subscribeAdmin = async function (onMessage) {
+    const { data: sess } = await client.auth.getSession();
+    syncRealtimeAuth(sess && sess.session);
     return channel("v4t-admin-chat", [
       {
         spec: { event: "INSERT", schema: "public", table: "messages" },
