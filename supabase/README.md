@@ -13,8 +13,20 @@ https://supabase.com → **New project** → region **Southeast Asia (Singapore)
 **SQL Editor → New query** → dán toàn bộ `supabase/schema.sql` → **Run**.
 
 File này tạo: `tours`, `tour_overrides`, `tour_content`, `bookings`, `admins`,
-`messages`; bật RLS + Realtime; tạo các hàm `create_booking`, `grant_admin`,
-`mark_thread_read`, `mark_customer_read`. Chạy lại nhiều lần cũng được.
+`messages`, `subscribers`; bật RLS + Realtime; tạo các hàm `create_booking`,
+`grant_admin`, `mark_thread_read`, `mark_customer_read`, `send_customer_message`,
+`send_admin_reply`, `subscribe_newsletter`. Chạy lại nhiều lần cũng được.
+
+> ⚠️ Nếu SQL Editor báo lỗi `42601 syntax error at or near "loop"` / `"v_content"`,
+> đó là do bạn đang dán **một đoạn rời** vào query cũ. Bấm **New query → Discard
+> unsaved edits → dán TOÀN BỘ file → Run**.
+
+### Giới hạn tần suất (chống spam) đã có trong DB
+
+- Đặt tour: tối đa **5 đơn / email / giờ** và **3 đơn / số điện thoại / giờ**.
+- Chat khách: tối đa **8 tin / khách / phút**.
+- Tin nhắn được gửi qua RPC `send_customer_message` / `send_admin_reply`; client
+  không được INSERT trực tiếp vào bảng `messages`.
 
 ## 3. Bật đăng nhập ẩn danh (bắt buộc để chat)
 
@@ -46,9 +58,13 @@ where email = 'email-cua-ban@example.com';
 ```js
 window.V4T_SUPABASE = {
   url: "https://xxxxx.supabase.co",
-  anonKey: "eyJhbGciOi..."
+  anonKey: "sb_publishable_..."
 };
 ```
+
+Cùng file này có `window.V4T_BANK` — **hãy thay bằng thông tin tài khoản thật**
+trước khi nhận tiền. Khách chọn “Chuyển khoản” sẽ thấy các thông tin này ngay,
+và dùng mã đặt chỗ làm nội dung chuyển khoản.
 
 ⚠️ Chỉ dùng **anon public key**. Không bao giờ put `service_role key` vào file này.
 Dữ liệu được bảo vệ bởi RLS, anon key an toàn khi nằm trong trang public.
@@ -63,9 +79,14 @@ Mở `index.html` (hoặc chạy `start.cmd` → http://localhost:8088) rồi ki
 | Khách bấm nút chat, gửi tin | Tin xuất hiện ngay trong `admin.html → Tin nhắn`, có badge chưa đọc |
 | Admin trả lời | Khách thấy câu trả lời ngay (Realtime; có polling dự phòng 8s) |
 | Admin đổi giá / ẩn tour | Khách đang mở trang thấy thay đổi ngay |
-| Admin → Tour → Nội dung | Sửa tiêu đề, ảnh, lịch trình (JSON) → khách thấy ngay |
+| Admin → Tour → Chỉnh sửa | Sửa tiêu đề, ảnh, điểm nhấn, lịch trình, thư viện ảnh → khách thấy ngay |
+| Admin → Tour → Thêm tour | Tạo tour mới trên Supabase, hiển thị ngay cho khách (không sửa `data.js`) |
+| Đăng ký email ở footer | Email xuất hiện trong `admin.html → Đăng ký nhận tin` |
+| Chọn “Chuyển khoản” | Hiện thông tin tài khoản từ `V4T_BANK` + mã đặt chỗ làm nội dung |
 
 Nếu chat báo lỗi "Không mở được phiên trò chuyện", kiểm tra lại bước 3.
+Nếu newsletter/chat báo lỗi `PGRST202 ... function ... not found`, bạn chưa chạy
+lại `supabase/schema.sql` sau bản cập nhật này.
 
 ## 7. Đưa lên GitHub Pages
 
@@ -77,8 +98,10 @@ Nếu chat báo lỗi "Không mở được phiên trò chuyện", kiểm tra l�
 ## 8. Lưu ý bảo mật & chi phí
 
 - Gói free Supabase **tự tạm dừng sau ~7 ngày không truy cập** → vào dashboard bấm Restore.
-- Khách có thể spam đơn/chat: cân nhắc thêm CAPTCHA hoặc giới hạn sau này.
+- Đã có rate limit trong DB (xem mục 2); nếu vẫn bị spam, cân nhắc thêm CAPTCHA.
 - Thông tin thẻ tín dụng trong form chỉ để giao diện, **không gửi/lưu**. Chưa có cổng thanh toán thật.
+- Email thông báo (bước cuối trong lộ trình) chưa làm: cần cấu hình dịch vụ gửi mail
+  (Supabase Edge Function + SMTP/Resend) và lưu secret ở Edge Function, **không** đưa vào frontend.
 - Sao lưu định kỳ: Table Editor → `bookings` / `messages` → Export CSV.
 - Muốn quay lại backend Node: xóa trống 2 chuỗi trong `js/supabase-config.js`
   (cần cài Node ≥ 22.5 và chạy `start.cmd`).

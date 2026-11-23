@@ -97,6 +97,13 @@ create table if not exists public.messages (
 create index if not exists messages_thread_created_idx on public.messages (thread, created_at);
 create index if not exists messages_admin_unread_idx on public.messages (admin_read) where admin_read = false;
 
+-- 4b. Đăng ký nhận tin -----------------------------------------------------
+
+create table if not exists public.subscribers (
+  email text primary key,
+  created_at timestamptz not null default now()
+);
+
 -- 5. Phân quyền -----------------------------------------------------------
 
 create or replace function public.is_admin() returns boolean
@@ -109,6 +116,7 @@ alter table public.tour_content enable row level security;
 alter table public.bookings enable row level security;
 alter table public.admins enable row level security;
 alter table public.messages enable row level security;
+alter table public.subscribers enable row level security;
 
 -- Tour: mọi người đọc, admin sửa
 drop policy if exists "tours read" on public.tours;
@@ -151,27 +159,32 @@ drop policy if exists "admins delete others" on public.admins;
 create policy "admins delete others" on public.admins for delete
   using (public.is_admin() and user_id <> auth.uid());
 
--- Chat: khách (đăng nhập ẩn danh) chỉ thấy tin của chính mình; admin thấy tất cả
+-- Chat: khách (đăng nhập ẩn danh) chỉ thấy tin của chính mình; admin thấy tất cả.
+-- INSERT không mở trực tiếp cho client mà đi qua RPC có giới hạn tần suất.
 drop policy if exists "messages read" on public.messages;
 create policy "messages read" on public.messages for select
   using (public.is_admin() or customer_uid = auth.uid());
 
 drop policy if exists "messages customer insert" on public.messages;
-create policy "messages customer insert" on public.messages for insert to anon, authenticated
-  with check (sender = 'customer' and customer_uid = auth.uid());
-
 drop policy if exists "messages admin insert" on public.messages;
-create policy "messages admin insert" on public.messages for insert to authenticated
-  with check (sender = 'admin' and public.is_admin());
 
 drop policy if exists "messages admin update" on public.messages;
 create policy "messages admin update" on public.messages for update to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
+-- Newsletter: chỉ admin đọc danh sách; khách gửi qua RPC subscribe_newsletter.
+drop policy if exists "subscribers read admin" on public.subscribers;
+create policy "subscribers read admin" on public.subscribers for select
+  using (public.is_admin());
+
 grant select on public.tours, public.tour_overrides, public.tour_content to anon, authenticated;
 grant select, update, delete on public.bookings to authenticated;
 grant select on public.admins to authenticated;
-grant select, insert, update on public.messages to anon, authenticated;
+grant select, update on public.messages to authenticated;
+grant select on public.subscribers to authenticated;
+grant select, insert, update, delete on public.tours to authenticated;
+grant select, insert, update, delete on public.tour_overrides to authenticated;
+grant select, insert, update, delete on public.tour_content to authenticated;
 
 -- 6. Hàm tạo đơn: khách gọi trực tiếp, giá do DB tính lại -----------------
 
@@ -198,7 +211,6 @@ declare
   v_discount integer;
   v_total integer;
   v_code text;
-  v_content jsonb;
   v_promo text := upper(trim(coalesce(p_promo, '')));
   v_name text := trim(coalesce(p_name, ''));
   v_email text := trim(coalesce(p_email, ''));
@@ -226,20 +238,30 @@ begin
     raise exception 'Ngày khởi hành phải từ ngày mai trở đi';
   end if;
 
-  select coalesce(o.price, t.price), t.title_vi, o.active, c.data
-  into v_price, v_title, v_active, v_content
+  -- Chống spam: tối đa 5 đơn / email / giờ và 3 đơn / số điện thoại / giờ.
+  if (select count(*) from public.bookings b
+       where lower(b.contact_email) = lower(v_email)
+         and b.created_at > now() - interval '1 hour') >= 5 then
+    raise exception 'Bạn đã gửi quá nhiều đơn trong thời gian ngắn. Vui lòng thử lại sau ít phút.';
+  end if;
+  if (select count(*) from public.bookings b
+       where regexp_replace(b.contact_phone, '[\s().-]', '', 'g') =
+             regexp_replace(v_phone, '[\s().-]', '', 'g')
+         and b.created_at > now() - interval '1 hour') >= 3 then
+    raise exception 'Bạn đã gửi quá nhiều đơn trong thời gian ngắn. Vui lòng thử lại sau ít phút.';
+  end if;
+
+  select coalesce(o.price, t.price), t.title_vi, o.active
+  into v_price, v_title, v_active
   from public.tours t
   left join public.tour_overrides o on o.tour_id = t.id
-  left join public.tour_content c on c.tour_id = t.id
   where t.id = p_tour_id;
 
   if v_price is null then
     raise exception 'Tour không tồn tại';
   end if;
-  if v_content is not null then
-    if v_content ? 'price' then v_price := (v_content ->> 'price')::integer; end if;
-    if v_content ? 'title_vi' then v_title := v_content ->> 'title_vi'; end if;
-  end if;
+  -- Giá/tiêu đề luôn lấy từ tours + tour_overrides, không lấy từ tour_content
+  -- để tránh lệch giữa nội dung admin sửa và giá lúc khách đặt.
   if v_active = false then
     raise exception 'Tour này hiện không mở bán';
   end if;
@@ -346,8 +368,102 @@ $$;
 revoke all on function public.mark_customer_read(text) from public, anon;
 grant execute on function public.mark_customer_read(text) to authenticated;
 
+-- 8b. Gửi tin nhắn có giới hạn tần suất -----------------------------------
+
+create or replace function public.send_customer_message(
+  p_thread text,
+  p_name text,
+  p_body text
+) returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_body text := btrim(coalesce(p_body, ''));
+  v_name text := btrim(coalesce(p_name, ''));
+  v_id uuid;
+begin
+  if v_uid is null then
+    raise exception 'Phiên trò chuyện chưa sẵn sàng';
+  end if;
+  if length(v_body) < 1 or length(v_body) > 2000 then
+    raise exception 'Tin nhắn phải từ 1 đến 2000 ký tự';
+  end if;
+  -- Tối đa 8 tin nhắn / khách / phút.
+  if (select count(*) from public.messages m
+       where m.customer_uid = v_uid and m.created_at > now() - interval '1 minute') >= 8 then
+    raise exception 'Bạn gửi tin nhắn hơi nhanh. Vui lòng đợi một chút.';
+  end if;
+
+  insert into public.messages (thread, sender, customer_uid, author_name, body)
+  values (p_thread, 'customer', v_uid, coalesce(nullif(v_name, ''), 'Khách'), v_body)
+  returning id into v_id;
+
+  return jsonb_build_object(
+    'id', v_id, 'thread', p_thread, 'sender', 'customer',
+    'author_name', coalesce(nullif(v_name, ''), 'Khách'), 'body', v_body
+  );
+end;
+$$;
+
+revoke all on function public.send_customer_message(text, text, text) from public;
+grant execute on function public.send_customer_message(text, text, text) to anon, authenticated;
+
+create or replace function public.send_admin_reply(
+  p_thread text,
+  p_body text,
+  p_name text default ''
+) returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_body text := btrim(coalesce(p_body, ''));
+  v_id uuid;
+begin
+  if not public.is_admin() then
+    raise exception 'Bạn không có quyền thực hiện thao tác này';
+  end if;
+  if length(v_body) < 1 or length(v_body) > 2000 then
+    raise exception 'Tin nhắn phải từ 1 đến 2000 ký tự';
+  end if;
+
+  insert into public.messages (thread, sender, customer_uid, author_name, body)
+  values (p_thread, 'admin', null, coalesce(nullif(btrim(coalesce(p_name, '')), ''), 'Admin'), v_body)
+  returning id into v_id;
+
+  return jsonb_build_object(
+    'id', v_id, 'thread', p_thread, 'sender', 'admin',
+    'author_name', coalesce(nullif(btrim(coalesce(p_name, '')), ''), 'Admin'), 'body', v_body
+  );
+end;
+$$;
+
+revoke all on function public.send_admin_reply(text, text, text) from public, anon;
+grant execute on function public.send_admin_reply(text, text, text) to authenticated;
+
+-- 8c. Đăng ký nhận tin -----------------------------------------------------
+
+create or replace function public.subscribe_newsletter(p_email text)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare v_email text := lower(btrim(coalesce(p_email, '')));
+begin
+  if v_email !~ '^[^\s@]+@[^\s@]+\.[^\s@]{2,}$' then
+    raise exception 'Email không hợp lệ';
+  end if;
+  insert into public.subscribers (email) values (v_email)
+  on conflict (email) do nothing;
+  return jsonb_build_object('email', v_email);
+end;
+$$;
+
+revoke all on function public.subscribe_newsletter(text) from public;
+grant execute on function public.subscribe_newsletter(text) to anon, authenticated;
+
 -- 9. Bật Realtime cho các bảng cần cập nhật tức thì -----------------------
 
+do $$ begin alter publication supabase_realtime add table public.tours; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table public.bookings; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table public.tour_overrides; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table public.tour_content; exception when duplicate_object then null; end $$;

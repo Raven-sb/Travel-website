@@ -32,6 +32,8 @@
     els.bookChildren = byId("bookChildren");
     els.bookDate = byId("bookDate");
     els.cardFields = byId("cardFields");
+    els.transferInfo = byId("transferInfo");
+    els.transferCodeChip = byId("transferCodeChip");
     els.cardNumber = byId("cardNumber");
     els.cardName = byId("cardName");
     els.cardExp = byId("cardExp");
@@ -44,6 +46,21 @@
     els.backBtn = byId("backBtn");
     els.successWrap = byId("successWrap");
     els.successCard = byId("successCard");
+  }
+
+  function fillBankInfo() {
+    const bank = window.V4T_BANK || {};
+    if (els.transferInfo) {
+      els.transferInfo.querySelectorAll("[data-bank]").forEach(function (el) {
+        const val = bank[el.dataset.bank];
+        if (val) el.textContent = String(val);
+      });
+      const note = els.transferInfo.querySelector("[data-bank-note]");
+      if (note) note.textContent = bank[V.state.lang === "en" ? "noteEn" : "note"] || bank.note || "";
+    }
+    if (els.transferCodeChip) {
+      els.transferCodeChip.textContent = state.success && state.success.code ? state.success.code : "—";
+    }
   }
 
   function totals() {
@@ -294,6 +311,7 @@
       els.layout.hidden = true;
       els.successWrap.hidden = false;
       syncStep();
+      fillBankInfo();
       renderSuccess();
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -332,6 +350,9 @@
         "<div><small>" + V.esc(V.t("book.total")) + "</small><strong>" + V.price(s.total) + "</strong></div>" +
       "</div>" +
       '<p class="success-note">' + V.esc(V.t("book.successNote")) + "</p>" +
+      (state.payment === "transfer"
+        ? '<p class="success-note success-note--bank">' + V.esc(V.t("book.transferSuccessNote")) + "</p>"
+        : "") +
       '<div class="success-actions">' +
         '<button class="btn btn--ghost" type="button" data-print>' + V.icon("printer", 16) + V.esc(V.t("book.print")) + "</button>" +
         '<a class="btn btn--ghost" href="tours.html">' + V.esc(V.t("book.browse")) + "</a>" +
@@ -405,6 +426,7 @@
       radio.addEventListener("change", function () {
         state.payment = radio.value;
         els.cardFields.classList.toggle("is-visible", radio.value === "card");
+        if (els.transferInfo) els.transferInfo.classList.toggle("is-visible", radio.value === "transfer");
       });
     });
 
@@ -461,6 +483,7 @@
 
     window.addEventListener("vv:lang", function () {
       if (!state.tour) return;
+      fillBankInfo();
       renderSummary();
       if (state.step === 3) {
         renderSuccess();
@@ -493,6 +516,7 @@
     els.bookDate.value = state.date;
 
     bind();
+    fillBankInfo();
     renderSummary();
     syncStep();
     V.hydrateIcons();

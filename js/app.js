@@ -7,6 +7,7 @@
   const LS_FAVS = "vv:favs";
   const LS_TOUR_OVERRIDES = "v4t:tourOverrides";
   const LS_TOUR_CONTENT = "v4t:tourContent";
+  const LS_TOURS = "v4t:tours";
   const LS_CHAT_THREAD = "v4t:chatThread";
   const LS_CHAT_NAME = "v4t:chatName";
   const state = { lang: localStorage.getItem(LS_LANG) === "en" ? "en" : "vi" };
@@ -130,6 +131,37 @@
     });
   }
 
+  function remoteTourSkeleton(row) {
+    const name = row.titleVi || row.id;
+    return {
+      id: row.id,
+      dest: "", region: "", type: [], duration: 1,
+      title: { vi: name, en: name },
+      tagline: { vi: "", en: "" },
+      price: row.price,
+      oldPrice: null, rating: 0, reviews: 0, badge: "",
+      img: "assets/img/hero.jpg", gallery: [],
+      departure: { vi: "", en: "" }, group: { vi: "", en: "" },
+      highlights: [], itinerary: []
+    };
+  }
+
+  function applyRemoteTours(rows, overrides) {
+    (rows || []).forEach(function (row) {
+      if (!row || !row.id || !row.price) return;
+      let tr = DATA.tours.find(function (t) { return t.id === row.id; });
+      if (!tr) {
+        tr = remoteTourSkeleton(row);
+        tr._custom = true;
+        DATA.tours.push(tr);
+      }
+      tr._basePrice = row.price;
+      const o = (overrides || {})[row.id] || {};
+      if (!(typeof o.price === "number" && o.price > 0)) tr.price = row.price;
+    });
+  }
+
+  applyRemoteTours(readJSON(LS_TOURS, []) || [], {});
   applyTourOverrides();
   applyTourContent();
 
@@ -140,7 +172,9 @@
       try {
         localStorage.setItem(LS_TOUR_OVERRIDES, JSON.stringify(cat.overrides || {}));
         localStorage.setItem(LS_TOUR_CONTENT, JSON.stringify(cat.content || {}));
+        localStorage.setItem(LS_TOURS, JSON.stringify(cat.tours || []));
       } catch (e) { /* ignore */ }
+      applyRemoteTours(cat.tours || [], cat.overrides || {});
       applyTourOverrides(cat.overrides || {});
       applyTourContent(cat.content || {});
       window.dispatchEvent(new CustomEvent("vv:overrides"));
@@ -666,9 +700,10 @@
   function initNewsletter() {
     const form = document.getElementById("newsletterForm");
     if (!form) return;
-    form.addEventListener("submit", function (e) {
+    form.addEventListener("submit", async function (e) {
       e.preventDefault();
       const input = document.getElementById("newsletterEmail");
+      const btn = form.querySelector('button[type="submit"]');
       const value = input ? input.value.trim() : "";
       const ok = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
       if (!ok) {
@@ -676,7 +711,23 @@
         if (input) { input.focus(); input.classList.add("is-invalid"); }
         return;
       }
-      if (input) { input.value = ""; input.classList.remove("is-invalid"); }
+      if (input) input.classList.remove("is-invalid");
+      const api = window.V4T_API;
+      if (api && api.enabled) {
+        if (btn) btn.disabled = true;
+        try {
+          await api.subscribeNewsletter(value);
+          if (input) input.value = "";
+          toast(t("toast.newsletter"));
+        } catch (err) {
+          toast(err && err.message ? err.message : t("toast.newsletterErr"));
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+        return;
+      }
+      // Chế độ Node/local: giữ hành vi cũ (chỉ toast).
+      if (input) input.value = "";
       toast(t("toast.newsletter"));
     });
   }

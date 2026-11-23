@@ -19,6 +19,8 @@
   API.client = client;
 
   const DATA = window.VV_DATA || { tours: [] };
+  const BASE_IDS = {};
+  (DATA.tours || []).forEach(function (t) { BASE_IDS[t.id] = true; });
   const STATUS_KEYS = ["new", "confirmed", "done", "cancelled"];
   const channels = {};
 
@@ -97,8 +99,26 @@
   };
 
   API.fetchCatalog = async function () {
-    const [overrides, content] = await Promise.all([API.fetchOverrides(), API.fetchContent()]);
-    return { overrides: overrides, content: content };
+    const [overrides, content, base] = await Promise.all([
+      API.fetchOverrides(),
+      API.fetchContent(),
+      client.from("tours").select("id, price, title_vi")
+    ]);
+    check(base.error, "Không tải được danh sách tour");
+    return {
+      overrides: overrides,
+      content: content,
+      tours: (base.data || []).map(function (r) {
+        return { id: r.id, price: r.price, titleVi: r.title_vi || "" };
+      })
+    };
+  };
+
+  /* Newsletter ------------------------------------------------------------ */
+  API.subscribeNewsletter = async function (email) {
+    const { error } = await client.rpc("subscribe_newsletter", { p_email: String(email || "").trim() });
+    check(error, "Không đăng ký được. Vui lòng thử lại.");
+    return true;
   };
 
   /* Booking -------------------------------------------------------------- */
@@ -166,12 +186,38 @@
     return tr._basePrice != null ? tr._basePrice : tr.price;
   }
 
-  function toursMerged(overrides, content) {
+  function remoteTourSkeleton(row, patch) {
+    const title = (patch && patch.title) || {};
+    return {
+      id: row.id,
+      dest: "",
+      region: "",
+      type: [],
+      duration: 1,
+      title: { vi: title.vi || row.titleVi || row.id, en: title.en || row.titleVi || row.id },
+      tagline: { vi: "", en: "" },
+      price: row.price,
+      oldPrice: null,
+      rating: 0,
+      reviews: 0,
+      badge: "",
+      img: "assets/img/hero.jpg",
+      gallery: [],
+      departure: { vi: "", en: "" },
+      group: { vi: "", en: "" },
+      highlights: [],
+      itinerary: []
+    };
+  }
+
+  function toursMerged(overrides, content, baseRows) {
     const ov = overrides || {};
     const ct = content || {};
-    return (DATA.tours || []).map(function (tr) {
+    const rows = baseRows || [];
+    const list = (DATA.tours || []).map(function (tr) {
+      const row = rows.find(function (r) { return r.id === tr.id; });
       const item = JSON.parse(JSON.stringify(tr));
-      const base = basePriceOf(tr);
+      const base = row ? row.price : basePriceOf(tr);
       const o = ov[tr.id] || {};
       const c = ct[tr.id] || {};
       item._basePrice = base;
@@ -182,21 +228,112 @@
       deepMerge(item, c);
       return item;
     });
+    rows.forEach(function (row) {
+      if (BASE_IDS[row.id] || list.some(function (t) { return t.id === row.id; })) return;
+      const o = ov[row.id] || {};
+      const c = ct[row.id] || {};
+      const item = remoteTourSkeleton(row, c);
+      item._custom = true;
+      item._basePrice = row.price;
+      item.price = typeof o.price === "number" ? o.price : row.price;
+      item.active = o.active !== false;
+      item.featured = o.featured === true;
+      item._content = JSON.parse(JSON.stringify(c));
+      deepMerge(item, c);
+      list.push(item);
+    });
+    return list;
   }
 
   API.toursMerged = toursMerged;
 
-  async function saveTour(id, body) {
-    await requireAdmin();
-    const tr = (DATA.tours || []).find(function (t) { return t.id === id; });
-    if (!tr) throw fail("Không tìm thấy tour");
-    const base = basePriceOf(tr);
-    const price = Math.round(Number(body.price));
+  function validPrice(value) {
+    const price = Math.round(Number(value));
     if (!(price >= 100000 && price <= 200000000)) {
       throw fail("Giá phải từ 100.000₫ đến 200.000.000₫");
     }
+    return price;
+  }
+
+  function validTourId(value) {
+    const id = String(value || "").trim().toLowerCase();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+){1,60}$/.test(id)) {
+      throw fail("Mã tour chỉ dùng chữ thường, số và dấu gạch ngang (vd: Phu-Quoc-3n2d → phu-quoc-3n2d)");
+    }
+    return id;
+  }
+
+  function titleFrom(body, fallback) {
+    const c = body.content || {};
+    return String(body.titleVi || (c.title && c.title.vi) || fallback || "").trim().slice(0, 200);
+  }
+
+  async function writeContent(id, content) {
+    if (Object.keys(content).length) {
+      const { error } = await client.from("tour_content").upsert({
+        tour_id: id,
+        data: content,
+        updated_at: new Date().toISOString()
+      });
+      check(error, "Không lưu được nội dung tour");
+    } else {
+      const { error } = await client.from("tour_content").delete().eq("tour_id", id);
+      check(error, "Không xóa được nội dung tour");
+    }
+  }
+
+  async function mergedTour(id) {
+    const catalog = await API.fetchCatalog();
+    return toursMerged(catalog.overrides, catalog.content, catalog.tours).find(function (t) { return t.id === id; });
+  }
+
+  API.createTour = async function (body) {
+    await requireAdmin();
+    const id = validTourId(body.id);
+    const catalog = await API.fetchCatalog();
+    if ((DATA.tours || []).some(function (t) { return t.id === id; }) ||
+        catalog.tours.some(function (t) { return t.id === id; })) {
+      throw fail("Mã tour này đã tồn tại");
+    }
+    const price = validPrice(body.price);
+    const titleVi = titleFrom(body, id) || id;
+    const { error } = await client.from("tours").insert({ id: id, price: price, title_vi: titleVi });
+    check(error, "Không tạo được tour");
+    await writeContent(id, body.content || {});
     const active = body.active !== false;
     const featured = body.featured === true;
+    if (!active || featured) {
+      const { error: oErr } = await client.from("tour_overrides").upsert({
+        tour_id: id,
+        price: null,
+        active: active ? null : false,
+        featured: featured ? true : null,
+        updated_at: new Date().toISOString()
+      });
+      check(oErr, "Không lưu được trạng thái tour");
+    }
+    return mergedTour(id);
+  };
+
+  async function saveTour(id, body) {
+    await requireAdmin();
+    const catalog = await API.fetchCatalog();
+    const row = catalog.tours.find(function (t) { return t.id === id; });
+    if (!row) throw fail("Không tìm thấy tour");
+    const isBase = !!BASE_IDS[id];
+    const baseTour = (DATA.tours || []).find(function (t) { return t.id === id; });
+    const base = isBase && baseTour ? basePriceOf(baseTour) : row.price;
+    const price = validPrice(body.price);
+    const active = body.active !== false;
+    const featured = body.featured === true;
+
+    if (!isBase) {
+      const { error: tErr } = await client.from("tours").update({
+        price: price,
+        title_vi: titleFrom(body, row.titleVi) || row.titleVi || id
+      }).eq("id", id);
+      check(tErr, "Không cập nhật được tour");
+    }
 
     let error;
     if (price === base && active && !featured) {
@@ -212,22 +349,20 @@
     }
     check(error, "Không lưu được thay đổi");
 
-    const content = body.content || {};
-    if (Object.keys(content).length) {
-      const { error: cErr } = await client.from("tour_content").upsert({
-        tour_id: id,
-        data: content,
-        updated_at: new Date().toISOString()
-      });
-      check(cErr, "Không lưu được nội dung tour");
-    } else {
-      const { error: cErr } = await client.from("tour_content").delete().eq("tour_id", id);
-      check(cErr, "Không xóa được nội dung tour");
-    }
-
-    const catalog = await API.fetchCatalog();
-    return toursMerged(catalog.overrides, catalog.content).find(function (t) { return t.id === id; });
+    await writeContent(id, body.content || {});
+    return mergedTour(id);
   }
+
+  API.deleteTour = async function (id) {
+    await requireAdmin();
+    const catalog = await API.fetchCatalog();
+    const row = catalog.tours.find(function (t) { return t.id === id; });
+    if (!row) throw fail("Không tìm thấy tour");
+    if (BASE_IDS[id]) throw fail("Không thể xóa tour gốc. Bạn có thể ẩn tour bằng công tắc Đang bán.");
+    const { error } = await client.from("tours").delete().eq("id", id);
+    check(error, "Không xóa được tour");
+    return true;
+  };
 
   /* Realtime -------------------------------------------------------------- */
   function channel(name, specs) {
@@ -243,6 +378,7 @@
 
   API.subscribeCatalog = function (onChange) {
     return channel("v4t-catalog", [
+      { spec: { event: "*", schema: "public", table: "tours" }, handler: onChange },
       { spec: { event: "*", schema: "public", table: "tour_overrides" }, handler: onChange },
       { spec: { event: "*", schema: "public", table: "tour_content" }, handler: onChange }
     ]);
@@ -276,16 +412,15 @@
   };
 
   chat.send = async function (thread, body, authorName) {
-    const user = await ensureSession();
+    await ensureSession();
     const text = String(body || "").trim().slice(0, 2000);
     if (!text) throw fail("Nhập nội dung tin nhắn");
-    const { data, error } = await client.from("messages").insert({
-      thread: thread,
-      sender: "customer",
-      customer_uid: user.id,
-      author_name: String(authorName || "Khách").trim().slice(0, 80) || "Khách",
-      body: text
-    }).select().single();
+    // Đi qua RPC để DB áp giới hạn tần suất (8 tin / khách / phút).
+    const { data, error } = await client.rpc("send_customer_message", {
+      p_thread: thread,
+      p_name: String(authorName || "Khách").trim().slice(0, 80),
+      p_body: text
+    });
     check(error, "Không gửi được tin nhắn");
     return messageFromRow(data);
   };
@@ -308,13 +443,11 @@
     const me = await requireAdmin();
     const text = String(body || "").trim().slice(0, 2000);
     if (!text) throw fail("Nhập nội dung trả lời");
-    const { data, error } = await client.from("messages").insert({
-      thread: thread,
-      sender: "admin",
-      customer_uid: null,
-      author_name: String(authorName || me.displayName || "Admin").slice(0, 80),
-      body: text
-    }).select().single();
+    const { data, error } = await client.rpc("send_admin_reply", {
+      p_thread: thread,
+      p_body: text,
+      p_name: String(authorName || me.displayName || "Admin").slice(0, 80)
+    });
     check(error, "Không gửi được câu trả lời");
     return messageFromRow(data);
   };
@@ -407,23 +540,42 @@
         }
       }
 
+      if (head === "subscribers" && parts.length === 1 && method === "GET") {
+        await requireAdmin();
+        const { data, error } = await client.from("subscribers")
+          .select("email, created_at").order("created_at", { ascending: false });
+        check(error, "Không tải được danh sách đăng ký nhận tin");
+        return {
+          subscribers: (data || []).map(function (s) {
+            return { email: s.email, createdAt: s.created_at };
+          })
+        };
+      }
+
       if (head === "tours" && parts.length === 1 && method === "GET") {
         await requireAdmin();
         const catalog = await API.fetchCatalog();
-        return { tours: toursMerged(catalog.overrides, catalog.content) };
+        return { tours: toursMerged(catalog.overrides, catalog.content, catalog.tours) };
+      }
+
+      if (head === "tours" && parts.length === 1 && method === "POST") {
+        return { tour: await API.createTour(body) };
       }
 
       if (head === "tours" && parts[1]) {
         const id = decodeURIComponent(parts[1]);
         if (method === "PUT") return { tour: await saveTour(id, body) };
         if (method === "DELETE") {
+          if (!BASE_IDS[id]) {
+            await API.deleteTour(id);
+            return { ok: true };
+          }
           await requireAdmin();
           const { error } = await client.from("tour_overrides").delete().eq("tour_id", id);
           check(error, "Không khôi phục được giá gốc");
           const { error: cErr } = await client.from("tour_content").delete().eq("tour_id", id);
           check(cErr, "Không khôi phục được nội dung");
-          const catalog = await API.fetchCatalog();
-          return { tour: toursMerged(catalog.overrides, catalog.content).find(function (t) { return t.id === id; }) };
+          return { tour: await mergedTour(id) };
         }
       }
 

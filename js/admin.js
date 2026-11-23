@@ -36,6 +36,7 @@
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     chat: '<path d="M12 4.2a7.8 7.8 0 1 0 0 15.6c.9 0 1.8-.1 2.6-.4L19 21l-.4-4.1a7.8 7.8 0 0 0-6.6-12.7Z"/><path d="M8.6 12h.01M12 12h.01M15.4 12h.01"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/>',
     send: '<path d="m4 12 16-8-6 16-2.5-6.5L4 12Z"/>'
   };
 
@@ -48,6 +49,7 @@
     tours: [],
     admins: [],
     messages: [],
+    subscribers: [],
     chatThread: null,
     contentTourId: null,
     modalCode: null,
@@ -268,6 +270,7 @@
     dashboard: { title: "Dashboard", sub: "Tổng quan hoạt động kinh doanh" },
     bookings: { title: "Đơn đăng ký", sub: "Theo dõi và xử lý đơn của khách" },
     messages: { title: "Tin nhắn", sub: "Trò chuyện trực tiếp với khách hàng" },
+    subscribers: { title: "Đăng ký nhận tin", sub: "Email khách đã đăng ký nhận tin tức & ưu đãi" },
     tours: { title: "Quản lý tour", sub: "Giá bán, nội dung và trạng thái tour" },
     accounts: { title: "Tài khoản", sub: "Người dùng được vào khu quản trị" }
   };
@@ -325,6 +328,9 @@
         if (!REMOTE) throw new Error("Tính năng chat cần kết nối Supabase.");
         state.messages = await REMOTE.chat.adminList();
         updateMsgBadge();
+      } else if (view === "subscribers") {
+        if (!REMOTE) throw new Error("Tính năng này cần kết nối Supabase.");
+        state.subscribers = (await api("/subscribers")).subscribers;
       } else if (view === "tours") {
         state.tours = (await api("/tours")).tours;
       } else if (view === "accounts") {
@@ -340,6 +346,7 @@
   function renderView() {
     if (state.view === "bookings") els.view.innerHTML = bookingsHTML();
     else if (state.view === "messages") els.view.innerHTML = messagesHTML();
+    else if (state.view === "subscribers") els.view.innerHTML = subscribersHTML();
     else if (state.view === "tours") els.view.innerHTML = toursHTML();
     else if (state.view === "accounts") els.view.innerHTML = accountsHTML();
     else els.view.innerHTML = dashboardHTML();
@@ -577,6 +584,40 @@
     }
   }
 
+  /* Newsletter ------------------------------------------------------------- */
+  function subscribersHTML() {
+    const rows = state.subscribers.map(function (s, i) {
+      return "<tr>" +
+        "<td>" + (i + 1) + "</td>" +
+        '<td><span class="adm-code">' + V.esc(s.email) + "</span></td>" +
+        "<td>" + V.esc(V.fmtDate(s.createdAt)) + "</td>" +
+        "</tr>";
+    }).join("");
+    return (
+      '<div class="adm-tools" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">' +
+        '<p style="font-size:.8rem;color:var(--muted);margin:0">Tổng: <strong>' + state.subscribers.length + "</strong> email đăng ký nhận tin.</p>" +
+        '<button class="btn btn--ghost btn--sm" type="button" data-sub-export>' + icon("external", 14) + " Xuất CSV</button>" +
+      "</div>" +
+      (rows
+        ? '<div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>#</th><th>Email</th><th>Ngày đăng ký</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
+        : '<div class="adm-empty"><h3>Chưa có email nào</h3><p>Khách đăng ký ở footer trang chủ sẽ xuất hiện tại đây.</p></div>')
+    );
+  }
+
+  function exportSubscribers() {
+    const lines = ["email,created_at"].concat(state.subscribers.map(function (s) {
+      return '"' + String(s.email).replace(/"/g, '""') + '","' + String(s.createdAt || "") + '"';
+    }));
+    const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "vietnam4trip-subscribers.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
   /* Tours ----------------------------------------------------------------- */
   function toursHTML() {
     const cards = state.tours.map(function (tr) {
@@ -602,8 +643,8 @@
             "</div>" +
             '<div class="adm-tour__foot">' +
               '<button class="btn btn--primary btn--sm" type="button" data-tour-save>Lưu thay đổi</button>' +
-              '<button class="btn btn--ghost btn--sm" type="button" data-tour-base>Giá gốc</button>' +
-              (REMOTE ? '<button class="btn btn--ghost btn--sm" type="button" data-tour-content>Nội dung</button>' : "") +
+              (tr._custom ? "" : '<button class="btn btn--ghost btn--sm" type="button" data-tour-base>Giá gốc</button>') +
+              (REMOTE ? '<button class="btn btn--ghost btn--sm" type="button" data-tour-content>Chỉnh sửa</button>' : "") +
             "</div>" +
           "</div>" +
         "</article>"
@@ -611,12 +652,13 @@
     }).join("");
 
     return (
-      '<div class="adm-tools" style="margin-bottom:14px">' +
+      '<div class="adm-tools" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">' +
         '<p style="font-size:.8rem;color:var(--muted);margin:0">' +
           (REMOTE
-            ? "Lưu trên Supabase — khách đang mở trang thấy thay đổi ngay (Realtime). Nút Nội dung để sửa tiêu đề, ảnh, lịch trình…"
+            ? "Lưu trên Supabase — khách thấy thay đổi ngay (Realtime). Nút Chỉnh sửa để sửa tiêu đề, ảnh, lịch trình, điểm nhấn…"
             : "Thay đổi lưu trên máy chủ và áp dụng cho mọi khách truy cập ngay khi họ tải lại trang.") +
         "</p>" +
+        (REMOTE ? '<button class="btn btn--primary btn--sm" type="button" data-tour-add>' + icon("plus", 14) + " Thêm tour</button>" : "") +
       "</div>" +
       '<div class="adm-tour-grid">' + cards + "</div>"
     );
@@ -705,84 +747,251 @@
     }
   }
 
-  function tourContentModalHTML(tour) {
+  function v_esc(v) { return V.esc(v == null ? "" : v); }
+
+  function langFields(label, prefix, obj) {
+    const o = obj || {};
+    return (
+      '<div class="adm-field"><label>' + label + " (VI)</label><input id=\"" + prefix + "Vi\" type=\"text\" value=\"" + v_esc(o.vi) + "\" /></div>" +
+      '<div class="adm-field"><label>' + label + " (EN)</label><input id=\"" + prefix + "En\" type=\"text\" value=\"" + v_esc(o.en) + "\" /></div>"
+    );
+  }
+
+  function highlightRow(item) {
+    const o = item || {};
+    return '<div class="adm-repeater__row" data-row>' +
+      '<input data-hl="vi" type="text" placeholder="Tiếng Việt" value="' + v_esc(o.vi) + '" />' +
+      '<input data-hl="en" type="text" placeholder="English" value="' + v_esc(o.en) + '" />' +
+      '<button class="adm-icon-btn" type="button" data-remove-row aria-label="Xóa">' + icon("trash", 15) + "</button></div>";
+  }
+
+  function itineraryRow(item) {
+    const o = item || {};
+    const title = o.title || {};
+    const desc = o.desc || {};
+    return '<div class="adm-repeat-card" data-row>' +
+      '<div class="adm-repeat-card__top">' +
+        '<label>Ngày <input data-it="day" type="number" min="1" max="60" value="' + v_esc(o.day == null ? 1 : o.day) + '" /></label>' +
+        '<button class="adm-icon-btn" type="button" data-remove-row aria-label="Xóa">' + icon("trash", 15) + "</button>" +
+      "</div>" +
+      '<input data-it="titleVi" type="text" placeholder="Tiêu đề (VI)" value="' + v_esc(title.vi) + '" />' +
+      '<input data-it="titleEn" type="text" placeholder="Title (EN)" value="' + v_esc(title.en) + '" />' +
+      '<textarea data-it="descVi" rows="3" placeholder="Mô tả (VI)">' + v_esc(desc.vi) + "</textarea>" +
+      '<textarea data-it="descEn" rows="3" placeholder="Description (EN)">' + v_esc(desc.en) + "</textarea>" +
+    "</div>";
+  }
+
+  function galleryRow(url) {
+    return '<div class="adm-repeater__row" data-row>' +
+      '<input data-gallery type="text" placeholder="assets/img/... hoặc https://..." value="' + v_esc(url) + '" />' +
+      '<button class="adm-icon-btn" type="button" data-remove-row aria-label="Xóa">' + icon("trash", 15) + "</button></div>";
+  }
+
+  function tourEditorHTML(tour, isNew) {
     const c = tour._content || {};
-    const title = c.title || {};
-    const tagline = c.tagline || {};
-    const val = function (v) { return V.esc(v == null ? "" : v); };
+    const fallback = isNew ? {} : tour;
+    const title = c.title || fallback.title || {};
+    const tagline = c.tagline || fallback.tagline || {};
+    const departure = c.departure || fallback.departure || {};
+    const group = c.group || fallback.group || {};
+    const sourceHighlights = c.highlights || fallback.highlights || [];
+    const sourceItinerary = c.itinerary || fallback.itinerary || [];
+    const sourceGallery = c.gallery || fallback.gallery || [];
+    const highlights = (sourceHighlights.length ? sourceHighlights : [{}]).map(highlightRow).join("");
+    const itinerary = (sourceItinerary.length ? sourceItinerary : [{}]).map(itineraryRow).join("");
+    const gallery = (sourceGallery.length ? sourceGallery : [""]).map(galleryRow).join("");
+    const destKeys = (window.VV_DATA.destinations || []).map(function (d) { return d.key; });
+    const curDest = c.dest || fallback.dest || "";
+    const curRegion = c.region || fallback.region || "";
+    const curTypes = c.type || fallback.type || [];
+    if (curDest && destKeys.indexOf(curDest) < 0) destKeys.unshift(curDest);
+    const destOptions = '<option value="">— Chọn điểm đến —</option>' + destKeys.map(function (key) {
+      const d = (window.VV_DATA.destinations || []).find(function (x) { return x.key === key; });
+      return '<option value="' + v_esc(key) + '"' + (curDest === key ? " selected" : "") + ">" +
+        v_esc(d ? d.name.vi : key) + "</option>";
+    }).join("");
+    const regionOptions = '<option value="">— Chọn —</option>' + ["north", "central", "south"].map(function (r) {
+      const label = { north: "Miền Bắc", central: "Miền Trung", south: "Miền Nam" }[r];
+      return '<option value="' + r + '"' + (curRegion === r ? " selected" : "") + ">" + label + "</option>";
+    }).join("");
+    const typeBoxes = Object.keys(TYPE_VI).map(function (key) {
+      const checked = curTypes.indexOf(key) > -1 ? " checked" : "";
+      return '<label class="adm-switch"><input type="checkbox" data-te-type value="' + key + '"' + checked + " />" + TYPE_VI[key] + "</label>";
+    }).join("");
+
     return (
       '<div class="adm-modal__head">' +
-        '<div><h2 id="admModalTitle">Nội dung tour</h2><small>' + V.esc(tour.title.vi) + "</small></div>" +
+        '<div><h2 id="admModalTitle">' + (isNew ? "Thêm tour mới" : "Chỉnh sửa tour") + "</h2><small>" + V.esc(tour.title.vi) + "</small></div>" +
         '<button class="adm-modal__close" type="button" data-close aria-label="Đóng">' + icon("x", 16) + "</button>" +
       "</div>" +
       '<div class="adm-modal__body">' +
         '<div class="adm-form">' +
           '<div class="adm-form__2col">' +
-            '<div class="adm-field"><label for="tcTitleVi">Tiêu đề (VI)</label><input id="tcTitleVi" type="text" value="' + val(title.vi) + '" /></div>' +
-            '<div class="adm-field"><label for="tcTitleEn">Tiêu đề (EN)</label><input id="tcTitleEn" type="text" value="' + val(title.en) + '" /></div>' +
-            '<div class="adm-field"><label for="tcTagVi">Mô tả ngắn (VI)</label><input id="tcTagVi" type="text" value="' + val(tagline.vi) + '" /></div>' +
-            '<div class="adm-field"><label for="tcTagEn">Mô tả ngắn (EN)</label><input id="tcTagEn" type="text" value="' + val(tagline.en) + '" /></div>' +
-            '<div class="adm-field"><label for="tcImg">Ảnh đại diện (URL/file)</label><input id="tcImg" type="text" value="' + val(c.img) + '" /></div>' +
-            '<div class="adm-field"><label for="tcBadge">Nhãn (bestseller/sale/new…)</label><input id="tcBadge" type="text" value="' + val(c.badge) + '" /></div>' +
-            '<div class="adm-field"><label for="tcRating">Đánh giá</label><input id="tcRating" type="number" min="0" max="5" step="0.1" value="' + val(c.rating) + '" /></div>' +
-            '<div class="adm-field"><label for="tcOldPrice">Giá cũ (₫, để trống nếu không có)</label><input id="tcOldPrice" type="number" min="0" step="50000" value="' + val(c.oldPrice) + '" /></div>' +
+            (isNew ? '<div class="adm-field"><label for="teId">Mã tour (slug, không đổi sau này)</label><input id="teId" type="text" placeholder="phu-quoc-3n2d" /></div>' : "") +
+            '<div class="adm-field"><label for="tePrice">Giá / khách (₫)</label><input id="tePrice" type="number" min="100000" step="50000" value="' + v_esc(tour.price) + '" /></div>' +
+            langFields("Tiêu đề", "teTitle", title) +
+            langFields("Mô tả ngắn", "teTag", tagline) +
+            '<div class="adm-field"><label for="teDest">Điểm đến</label><select id="teDest">' + destOptions + "</select></div>" +
+            '<div class="adm-field"><label for="teRegion">Miền</label><select id="teRegion">' + regionOptions + "</select></div>" +
+            '<div class="adm-field"><label for="teDuration">Số ngày</label><input id="teDuration" type="number" min="1" max="60" value="' + v_esc(c.duration == null ? tour.duration : c.duration) + '" /></div>' +
+            '<div class="adm-field"><label for="teImg">Ảnh đại diện (URL/file)</label><input id="teImg" type="text" value="' + v_esc(c.img == null ? tour.img : c.img) + '" /></div>' +
+            '<div class="adm-field"><label for="teBadge">Nhãn (bestseller/sale/new…)</label><input id="teBadge" type="text" value="' + v_esc(c.badge || fallback.badge) + '" /></div>' +
+            '<div class="adm-field"><label for="teRating">Đánh giá</label><input id="teRating" type="number" min="0" max="5" step="0.1" value="' + v_esc(c.rating == null ? (fallback.rating || 0) : c.rating) + '" /></div>' +
+            '<div class="adm-field"><label for="teReviews">Số lượt đánh giá</label><input id="teReviews" type="number" min="0" value="' + v_esc(c.reviews == null ? (fallback.reviews || 0) : c.reviews) + '" /></div>' +
+            '<div class="adm-field"><label for="teOldPrice">Giá cũ (₫, trống = không có)</label><input id="teOldPrice" type="number" min="0" step="50000" value="' + v_esc(c.oldPrice == null ? (fallback.oldPrice || "") : c.oldPrice) + '" /></div>' +
           "</div>" +
-          '<div class="adm-field"><label for="tcJson">Nội dung nâng cao (JSON) — lịch trình, điểm nhấn, thư viện ảnh…</label>' +
-            '<textarea id="tcJson" class="adm-note-area adm-json" rows="10" spellcheck="false">' + V.esc(JSON.stringify(c, null, 2)) + "</textarea></div>" +
-          '<p class="adm-sub">Các field ở trên sẽ ghi đè vào JSON. Để trống field nào thì giữ nguyên giá trị gốc từ code.</p>' +
+          langFields("Khởi hành", "teDeparture", departure) +
+          langFields("Quy mô đoàn", "teGroup", group) +
+          '<div class="adm-field"><label>Loại tour</label><div class="adm-switch-row">' + typeBoxes + "</div></div>" +
+          '<div class="adm-field"><label class="adm-switch"><input id="teActive" type="checkbox"' + (tour.active !== false ? " checked" : "") + " />Đang bán</label>" +
+            '<label class="adm-switch"><input id="teFeatured" type="checkbox"' + (tour.featured ? " checked" : "") + " />Nổi bật</label></div>" +
+
+          '<div class="adm-section">' +
+            '<div class="adm-section__head"><h3>Điểm nhấn</h3><button class="btn btn--ghost btn--sm" type="button" data-add="highlights">' + icon("plus", 14) + " Thêm</button></div>" +
+            '<div class="adm-repeater" id="teRows-highlights">' + highlights + "</div>" +
+          "</div>" +
+          '<div class="adm-section">' +
+            '<div class="adm-section__head"><h3>Lịch trình</h3><button class="btn btn--ghost btn--sm" type="button" data-add="itinerary">' + icon("plus", 14) + " Thêm ngày</button></div>" +
+            '<div class="adm-repeater" id="teRows-itinerary">' + itinerary + "</div>" +
+          "</div>" +
+          '<div class="adm-section">' +
+            '<div class="adm-section__head"><h3>Thư viện ảnh</h3><button class="btn btn--ghost btn--sm" type="button" data-add="gallery">' + icon("plus", 14) + " Thêm ảnh</button></div>" +
+            '<div class="adm-repeater" id="teRows-gallery">' + gallery + "</div>" +
+          "</div>" +
+          '<div class="adm-field"><label for="teJson">Nội dung nâng cao (JSON) — dùng cho trường đặc biệt ngoài giao diện</label>' +
+            '<textarea id="teJson" class="adm-note-area adm-json" rows="8" spellcheck="false">' + V.esc(JSON.stringify(c, null, 2)) + "</textarea></div>" +
+          '<p class="adm-sub">Các field ở trên sẽ ghi đè vào JSON. JSON ở cuối là nguồn gốc; chỉnh sửa cẩn thận.</p>' +
         "</div>" +
       "</div>" +
       '<div class="adm-modal__foot">' +
+        (isNew || !tour._custom ? "" : '<button class="btn btn--danger btn--sm" type="button" data-tour-delete>Xóa tour</button>') +
         '<button class="btn btn--ghost btn--sm" type="button" data-close>Hủy</button>' +
-        '<button class="btn btn--primary btn--sm" type="button" data-content-save>Lưu nội dung</button>' +
+        '<button class="btn btn--primary btn--sm" type="button" data-content-save>Lưu tour</button>' +
       "</div>"
     );
   }
 
-  function openTourContent(card) {
-    const tour = tourFromCard(card);
+  function openTourEditor(card) {
+    const isNew = !card;
+    const tour = isNew
+      ? { id: "", price: 1990000, title: { vi: "Tour mới" }, active: true, featured: false, img: "assets/img/hero.jpg", duration: 3, rating: 4.8, reviews: 0, _content: {} }
+      : tourFromCard(card);
     if (!tour) return;
-    state.contentTourId = tour.id;
-    openModal(tourContentModalHTML(tour));
+    state.contentTourId = isNew ? "__new__" : tour.id;
+    state.modalMode = isNew ? "add" : "edit";
+    openModal(tourEditorHTML(tour, isNew));
+  }
+
+  function readLang(prefix) {
+    const vi = byId(prefix + "Vi");
+    const en = byId(prefix + "En");
+    return { vi: vi ? vi.value.trim() : "", en: en ? en.value.trim() : "" };
+  }
+
+  function readRepeatRows(key, mapper) {
+    const wrap = byId("teRows-" + key);
+    if (!wrap) return [];
+    return Array.prototype.map.call(wrap.querySelectorAll("[data-row]"), mapper)
+      .filter(function (v) { return v && JSON.stringify(v).replace(/["{}\s:,]/g, "").length > 0; });
   }
 
   async function saveTourContent() {
-    const tour = state.tours.find(function (t) { return t.id === state.contentTourId; });
-    if (!tour) return;
+    const isNew = state.modalMode === "add";
+    const tour = isNew ? null : state.tours.find(function (t) { return t.id === state.contentTourId; });
+    if (!isNew && !tour) return;
+
     let patch;
     try {
-      patch = JSON.parse(byId("tcJson").value || "{}");
+      patch = JSON.parse(byId("teJson").value || "{}");
       if (!patch || typeof patch !== "object" || Array.isArray(patch)) throw new Error("bad json");
     } catch (e) {
       V.toast("JSON không hợp lệ. Kiểm tra lại nội dung nâng cao.");
       return;
     }
-    const simple = {
-      title: { vi: byId("tcTitleVi").value.trim(), en: byId("tcTitleEn").value.trim() },
-      tagline: { vi: byId("tcTagVi").value.trim(), en: byId("tcTagEn").value.trim() },
-      img: byId("tcImg").value.trim(),
-      badge: byId("tcBadge").value.trim(),
-      rating: Number(byId("tcRating").value) || undefined,
-      oldPrice: byId("tcOldPrice").value === "" ? null : Number(byId("tcOldPrice").value)
-    };
-    Object.keys(simple).forEach(function (k) {
-      const v = simple[k];
-      if (v && typeof v === "object") {
-        Object.keys(v).forEach(function (kk) { if (v[kk] !== "") patch[k] = Object.assign({}, patch[k] || {}, { [kk]: v[kk] }); });
-      } else if (v !== undefined && v !== "") {
-        patch[k] = v;
-      }
-    });
 
-    const card = document.querySelector('[data-tour-card="' + tour.id + '"]');
-    const body = card ? currentTourState(card, true) : { price: tour.price, active: tour.active, featured: tour.featured };
-    body.content = patch;
+    const title = readLang("teTitle");
+    const tagline = readLang("teTag");
+    const departure = readLang("teDeparture");
+    const group = readLang("teGroup");
+    if (title.vi || title.en) patch.title = title;
+    if (tagline.vi || tagline.en) patch.tagline = tagline;
+    if (departure.vi || departure.en) patch.departure = departure;
+    if (group.vi || group.en) patch.group = group;
+
+    const text = function (id) { const el = byId(id); return el ? el.value.trim() : ""; };
+    const num = function (id) { const el = byId(id); return el && el.value !== "" ? Number(el.value) : null; };
+    ["teImg", "teBadge", "teDest", "teRegion"].forEach(function (id) {
+      const key = { teImg: "img", teBadge: "badge", teDest: "dest", teRegion: "region" }[id];
+      const v = text(id);
+      if (v) patch[key] = v;
+    });
+    const duration = num("teDuration");
+    if (duration) patch.duration = duration;
+    const rating = num("teRating");
+    if (rating != null) patch.rating = rating;
+    const reviews = num("teReviews");
+    if (reviews != null) patch.reviews = reviews;
+    const oldPrice = num("teOldPrice");
+    patch.oldPrice = oldPrice;
+    patch.type = Array.prototype.map.call(document.querySelectorAll("[data-te-type]:checked"), function (el) { return el.value; });
+
+    patch.highlights = readRepeatRows("highlights", function (row) {
+      const vi = row.querySelector('[data-hl="vi"]').value.trim();
+      const en = row.querySelector('[data-hl="en"]').value.trim();
+      return vi || en ? { vi: vi, en: en } : null;
+    });
+    patch.itinerary = readRepeatRows("itinerary", function (row) {
+      const get = function (k) { return row.querySelector('[data-it="' + k + '"]'); };
+      const titleVi = get("titleVi").value.trim();
+      const titleEn = get("titleEn").value.trim();
+      const descVi = get("descVi").value.trim();
+      const descEn = get("descEn").value.trim();
+      const day = Number(get("day").value) || 1;
+      return titleVi || titleEn || descVi || descEn
+        ? { day: day, title: { vi: titleVi, en: titleEn }, desc: { vi: descVi, en: descEn } }
+        : null;
+    });
+    patch.gallery = readRepeatRows("gallery", function (row) {
+      return row.querySelector("[data-gallery]").value.trim();
+    }).filter(function (url) { return !!url; });
+
+    const price = num("tePrice");
+    const body = {
+      price: price,
+      active: byId("teActive").checked,
+      featured: byId("teFeatured").checked,
+      titleVi: title.vi || (isNew ? text("teId") : tour.title.vi),
+      content: patch
+    };
+    if (isNew) body.id = text("teId");
+
     try {
-      const res = await api("/tours/" + encodeURIComponent(tour.id), { method: "PUT", body: body });
-      if (card) paintTour(card, res.tour);
-      else state.tours[state.tours.indexOf(tour)] = res.tour;
+      const res = isNew
+        ? await api("/tours", { method: "POST", body: body })
+        : await api("/tours/" + encodeURIComponent(tour.id), { method: "PUT", body: body });
+      if (isNew) {
+        state.tours.push(res.tour);
+      } else {
+        const card = document.querySelector('[data-tour-card="' + tour.id + '"]');
+        if (card) paintTour(card, res.tour);
+        else state.tours[state.tours.indexOf(tour)] = res.tour;
+      }
       closeModal();
-      V.toast("Đã lưu nội dung \"" + res.tour.title.vi + "\"");
+      renderView();
+      V.toast("Đã lưu tour \"" + res.tour.title.vi + "\"");
+    } catch (err) {
+      V.toast(err.message);
+    }
+  }
+
+  async function deleteTour(id) {
+    if (!window.confirm("Xóa tour này khỏi Supabase? Đơn đã đặt vẫn giữ lại mã tour.")) return;
+    try {
+      await api("/tours/" + encodeURIComponent(id), { method: "DELETE" });
+      state.tours = state.tours.filter(function (t) { return t.id !== id; });
+      closeModal();
+      renderView();
+      V.toast("Đã xóa tour");
     } catch (err) {
       V.toast(err.message);
     }
@@ -1132,11 +1341,14 @@
         return;
       }
 
+      if (e.target.closest("[data-sub-export]")) { exportSubscribers(); return; }
+      if (e.target.closest("[data-tour-add]")) { openTourEditor(null); return; }
+
       const card = e.target.closest("[data-tour-card]");
       if (!card) return;
       if (e.target.closest("[data-tour-save]")) saveTourCard(card);
       else if (e.target.closest("[data-tour-base]")) resetTourPrice(card);
-      else if (e.target.closest("[data-tour-content]")) openTourContent(card);
+      else if (e.target.closest("[data-tour-content]")) openTourEditor(card);
     });
 
     els.view.addEventListener("change", function (e) {
@@ -1178,6 +1390,29 @@
       if (e.target.closest("[data-acc-reset]")) { resetAccountPassword(); return; }
       if (e.target.closest("[data-chat-send]")) { sendChatReply(); return; }
       if (e.target.closest("[data-content-save]")) { saveTourContent(); return; }
+
+      const addBtn = e.target.closest("[data-add]");
+      if (addBtn) {
+        const map = {
+          highlights: highlightRow,
+          itinerary: itineraryRow,
+          gallery: galleryRow
+        };
+        const make = map[addBtn.dataset.add];
+        const wrap = byId("teRows-" + addBtn.dataset.add);
+        if (make && wrap) wrap.insertAdjacentHTML("beforeend", make({}));
+        return;
+      }
+      const removeBtn = e.target.closest("[data-remove-row]");
+      if (removeBtn) {
+        const row = removeBtn.closest("[data-row]");
+        if (row) row.remove();
+        return;
+      }
+      if (e.target.closest("[data-tour-delete]") && state.contentTourId && state.contentTourId !== "__new__") {
+        deleteTour(state.contentTourId);
+        return;
+      }
 
       if (!state.modalCode) return;
 

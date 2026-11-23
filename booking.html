@@ -156,6 +156,21 @@
                     </label>
                   </div>
 
+                  <div class="transfer-info" id="transferInfo" aria-live="polite">
+                    <div class="transfer-info__head">
+                      <span data-icon="bank" data-icon-size="18"></span>
+                      <strong data-i18n="book.transferTitle"></strong>
+                    </div>
+                    <dl class="transfer-info__grid">
+                      <div><dt data-i18n="book.bankName"></dt><dd data-bank="bankName"></dd></div>
+                      <div><dt data-i18n="book.accountNumber"></dt><dd class="is-mono" data-bank="accountNumber"></dd></div>
+                      <div><dt data-i18n="book.accountHolder"></dt><dd data-bank="accountHolder"></dd></div>
+                      <div><dt data-i18n="book.bankBranch"></dt><dd data-bank="branch"></dd></div>
+                      <div class="transfer-info__full"><dt data-i18n="book.transferContent"></dt><dd><span class="code-chip code-chip--inline" id="transferCodeChip">—</span></dd></div>
+                    </dl>
+                    <p class="transfer-info__note" data-bank-note></p>
+                  </div>
+
                   <div class="card-fields" id="cardFields">
                     <div class="field field--full">
                       <label for="cardNumber" data-i18n="book.cardNumber"></label>
