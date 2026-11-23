@@ -848,12 +848,38 @@ body.adm-side-open .adm-burger span:nth-child(3) { top: 20px; transform: rotate(
   margin-bottom: 14px;
 }
 .adm-chat-bubble {
+  position: relative;
   max-width: 86%;
   align-self: flex-start;
   background: #fff;
   border: 1px solid var(--line, #e6e0d4);
   border-radius: 12px 12px 12px 3px;
-  padding: 9px 12px;
+  padding: 9px 30px 9px 12px;
+}
+.adm-chat-del {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #b8431f;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.adm-chat-bubble:hover .adm-chat-del,
+.adm-chat-del:focus-visible { opacity: 1; }
+.adm-chat-del:hover { background: rgba(228, 96, 63, 0.12); }
+.adm-chat-bubble.is-admin .adm-chat-del { color: #ffd9cc; }
+.adm-chat-bubble.is-admin .adm-chat-del:hover { background: rgba(255, 255, 255, 0.18); }
+.adm-chat-actions { display: flex; gap: 6px; align-items: center; }
+@media (hover: none) {
+  .adm-chat-del { opacity: 0.75; }
 }
 .adm-chat-bubble.is-admin {
   align-self: flex-end;

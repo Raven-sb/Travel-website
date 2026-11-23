@@ -201,6 +201,14 @@
       } else if (kind === "update") {
         const idx = state.messages.findIndex(function (x) { return x.id === m.id; });
         if (idx > -1) state.messages[idx] = m;
+      } else if (kind === "delete") {
+        const idx = state.messages.findIndex(function (x) { return x.id === m.id; });
+        const thread = idx > -1 ? state.messages[idx].thread : m.thread;
+        if (idx > -1) state.messages.splice(idx, 1);
+        if (thread && state.chatThread === thread && !els.modal.hidden) {
+          if (state.messages.some(function (x) { return x.thread === thread; })) openChat(thread);
+          else { state.chatThread = null; closeModal(); }
+        }
       }
       updateMsgBadge();
       if (state.view === "messages") refresh();
@@ -513,7 +521,10 @@
           "<td>" + V.esc((t.last.sender === "admin" ? "Bạn: " : "") + preview) + "</td>" +
           "<td>" + fdatetime(t.last.createdAt) + "</td>" +
           "<td>" + (t.unread ? '<span class="adm-badge adm-badge--new">' + t.unread + " mới</span>" : "—") + "</td>" +
-          '<td><button class="adm-row-btn" type="button" data-chat-thread="' + V.esc(t.thread) + '">Mở</button></td>' +
+          '<td class="adm-chat-actions">' +
+            '<button class="adm-row-btn" type="button" data-chat-thread="' + V.esc(t.thread) + '">Mở</button>' +
+            '<button class="adm-row-btn adm-row-btn--danger" type="button" data-chat-del-thread="' + V.esc(t.thread) + '" aria-label="Xóa hội thoại">' + icon("trash", 14) + "</button>" +
+          "</td>" +
         "</tr>"
       );
     }).join("");
@@ -535,7 +546,9 @@
     const bubbles = msgs.map(function (m) {
       return '<div class="adm-chat-bubble' + (m.sender === "admin" ? " is-admin" : "") + '">' +
         "<small>" + V.esc(m.authorName) + " · " + fdatetime(m.createdAt) + "</small>" +
-        "<p>" + V.esc(m.body) + "</p></div>";
+        "<p>" + V.esc(m.body) + "</p>" +
+        '<button class="adm-chat-del" type="button" data-chat-del="' + V.esc(m.id) + '" aria-label="Xóa tin nhắn này">' + icon("trash", 13) + "</button>" +
+        "</div>";
     }).join("");
     return (
       '<div class="adm-modal__head">' +
@@ -549,6 +562,7 @@
       "</div>" +
       '<div class="adm-modal__foot">' +
         '<button class="btn btn--ghost btn--sm" type="button" data-close>Đóng</button>' +
+        '<button class="btn btn--danger btn--sm" type="button" data-chat-del-thread>' + icon("trash", 15) + " Xóa hội thoại</button>" +
         '<button class="btn btn--primary btn--sm" type="button" data-chat-send>' + icon("send", 15) + " Gửi trả lời</button>" +
       "</div>"
     );
@@ -579,6 +593,39 @@
       if (input) input.value = "";
       openChat(state.chatThread);
       V.toast("Đã gửi câu trả lời");
+    } catch (err) {
+      V.toast(err.message);
+    }
+  }
+
+  async function deleteChatMessage(id) {
+    if (!REMOTE || !id) return;
+    if (!window.confirm("Xóa tin nhắn này? Thao tác không thể hoàn tác.")) return;
+    try {
+      await REMOTE.chat.adminDeleteMessage(id);
+      state.messages = state.messages.filter(function (m) { return m.id !== id; });
+      updateMsgBadge();
+      if (state.chatThread) {
+        if (state.messages.some(function (m) { return m.thread === state.chatThread; })) openChat(state.chatThread);
+        else { state.chatThread = null; closeModal(); }
+      }
+      if (state.view === "messages") renderView();
+      V.toast("Đã xóa tin nhắn");
+    } catch (err) {
+      V.toast(err.message);
+    }
+  }
+
+  async function deleteChatThread(thread) {
+    if (!REMOTE || !thread) return;
+    if (!window.confirm("Xóa toàn bộ cuộc hội thoại này? Thao tác không thể hoàn tác.")) return;
+    try {
+      await REMOTE.chat.adminDeleteThread(thread);
+      state.messages = state.messages.filter(function (m) { return m.thread !== thread; });
+      updateMsgBadge();
+      if (state.chatThread === thread) { state.chatThread = null; closeModal(); }
+      if (state.view === "messages") renderView();
+      V.toast("Đã xóa cuộc hội thoại");
     } catch (err) {
       V.toast(err.message);
     }
@@ -1315,6 +1362,9 @@
     els.view.addEventListener("click", function (e) {
       if (e.target.closest("[data-retry]")) { load(); return; }
 
+      const delThreadBtn = e.target.closest("[data-chat-del-thread]");
+      if (delThreadBtn) { deleteChatThread(delThreadBtn.dataset.chatDelThread); return; }
+
       const chatRow = e.target.closest("[data-chat-thread]");
       if (chatRow) { openChat(chatRow.dataset.chatThread); return; }
 
@@ -1388,6 +1438,9 @@
 
       if (e.target.closest("[data-acc-create]")) { createAccount(); return; }
       if (e.target.closest("[data-acc-reset]")) { resetAccountPassword(); return; }
+      const delMsgBtn = e.target.closest("[data-chat-del]");
+      if (delMsgBtn) { deleteChatMessage(delMsgBtn.dataset.chatDel); return; }
+      if (e.target.closest("[data-chat-del-thread]")) { deleteChatThread(state.chatThread); return; }
       if (e.target.closest("[data-chat-send]")) { sendChatReply(); return; }
       if (e.target.closest("[data-content-save]")) { saveTourContent(); return; }
 

@@ -20,6 +20,7 @@
     arrow: '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
     check: '<path d="m4.5 12.5 5 5L19.5 7"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    trash: '<path d="M4 7h16"/><path d="M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2"/><path d="M6.5 7l.8 12a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9l.8-12"/><path d="M10 11v6M14 11v6"/>',
     send: '<path d="m4 12 16-8-6 16-2.5-6.5L4 12Z"/>',
     shield: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"/><path d="m9 12 2 2 4-4"/>',
     users: '<path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="3.5"/><path d="M17 11a3.5 3.5 0 1 0 0-7"/><path d="M19.5 20v-1.5a4 4 0 0 0-3-3.8"/>',
@@ -568,9 +569,11 @@
           } else if (kind === "update") {
             const idx = messages.findIndex(function (x) { return x.id === m.id; });
             if (idx > -1) messages[idx] = m;
+          } else if (kind === "delete") {
+            messages = messages.filter(function (x) { return x.id !== m.id; });
           }
           paint();
-          if (open) api.chat.markRead(thread).catch(function () { /* ignore */ });
+          if (open && messages.length) api.chat.markRead(thread).catch(function () { /* ignore */ });
         });
         subscribed = true;
         note("");

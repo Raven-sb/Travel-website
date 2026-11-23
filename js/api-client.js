@@ -471,6 +471,25 @@
     check(error, "Không cập nhật được tin nhắn");
   };
 
+  chat.adminDeleteMessage = async function (id) {
+    await requireAdmin();
+    const { error } = await client.rpc("delete_message", { p_id: id });
+    check(error, "Không xóa được tin nhắn");
+    return true;
+  };
+
+  chat.adminDeleteThread = async function (thread) {
+    await requireAdmin();
+    const { error } = await client.rpc("delete_thread", { p_thread: thread });
+    check(error, "Không xóa được cuộc hội thoại");
+    return true;
+  };
+
+  function deletePayload(payload) {
+    const old = payload.old || {};
+    return { id: old.id, thread: old.thread, sender: old.sender };
+  }
+
   chat.subscribe = async function (thread, onMessage) {
     await ensureSession();
     return channel("v4t-chat-" + thread, [
@@ -481,6 +500,10 @@
       {
         spec: { event: "UPDATE", schema: "public", table: "messages", filter: "thread=eq." + thread },
         handler: function (payload) { onMessage(messageFromRow(payload.new), "update"); }
+      },
+      {
+        spec: { event: "DELETE", schema: "public", table: "messages", filter: "thread=eq." + thread },
+        handler: function (payload) { onMessage(deletePayload(payload), "delete"); }
       }
     ]);
   };
@@ -496,6 +519,10 @@
       {
         spec: { event: "UPDATE", schema: "public", table: "messages" },
         handler: function (payload) { onMessage(messageFromRow(payload.new), "update"); }
+      },
+      {
+        spec: { event: "DELETE", schema: "public", table: "messages" },
+        handler: function (payload) { onMessage(deletePayload(payload), "delete"); }
       }
     ]);
   };

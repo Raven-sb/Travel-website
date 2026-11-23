@@ -172,6 +172,13 @@ drop policy if exists "messages admin update" on public.messages;
 create policy "messages admin update" on public.messages for update to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "messages admin delete" on public.messages;
+create policy "messages admin delete" on public.messages for delete to authenticated
+  using (public.is_admin());
+
+-- Để Realtime gửi kèm toàn bộ dòng cũ khi DELETE (client xóa đúng tin).
+alter table public.messages replica identity full;
+
 -- Newsletter: chỉ admin đọc danh sách; khách gửi qua RPC subscribe_newsletter.
 drop policy if exists "subscribers read admin" on public.subscribers;
 create policy "subscribers read admin" on public.subscribers for select
@@ -180,7 +187,7 @@ create policy "subscribers read admin" on public.subscribers for select
 grant select on public.tours, public.tour_overrides, public.tour_content to anon, authenticated;
 grant select, update, delete on public.bookings to authenticated;
 grant select on public.admins to authenticated;
-grant select, update on public.messages to authenticated;
+grant select, update, delete on public.messages to authenticated;
 grant select on public.subscribers to authenticated;
 grant select, insert, update, delete on public.tours to authenticated;
 grant select, insert, update, delete on public.tour_overrides to authenticated;
@@ -455,6 +462,44 @@ $$;
 
 revoke all on function public.send_admin_reply(text, text, text) from public, anon;
 grant execute on function public.send_admin_reply(text, text, text) to authenticated;
+
+-- 8b2. Admin xóa tin nhắn / xóa cả cuộc hội thoại ---------------------------
+
+create or replace function public.delete_message(p_id uuid)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare n integer;
+begin
+  if not public.is_admin() then
+    raise exception 'Bạn không có quyền thực hiện thao tác này';
+  end if;
+  delete from public.messages where id = p_id;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+revoke all on function public.delete_message(uuid) from public, anon;
+grant execute on function public.delete_message(uuid) to authenticated;
+
+create or replace function public.delete_thread(p_thread text)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare n integer;
+begin
+  if not public.is_admin() then
+    raise exception 'Bạn không có quyền thực hiện thao tác này';
+  end if;
+  delete from public.messages where thread = p_thread;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+revoke all on function public.delete_thread(text) from public, anon;
+grant execute on function public.delete_thread(text) to authenticated;
 
 -- Sửa các câu trả lời cũ bị vô hình do customer_uid = null.
 update public.messages a
