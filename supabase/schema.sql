@@ -115,15 +115,14 @@ create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path = public
 as $$ select exists (select 1 from public.admins a where a.user_id = auth.uid()) $$;
 
--- Quản trị tối cao: chỉ tài khoản này được xóa vĩnh viễn hội thoại.
+-- Quản trị tối cao: chỉ tài khoản ĐĂNG NHẬP bằng email này được xóa vĩnh viễn.
+-- So sánh với email trong JWT (email đăng nhập thật), không phụ thuộc cột
+-- admins.email (có thể lỡ nhập khác lúc tạo tài khoản).
 create or replace function public.is_super_admin() returns boolean
 language sql stable security definer set search_path = public
 as $$
-  select exists (
-    select 1 from public.admins a
-    where a.user_id = auth.uid()
-      and lower(a.email) = 'khanhquang94cva@gmail.com'
-  )
+  select public.is_admin()
+     and lower(coalesce(auth.jwt() ->> 'email', '')) = 'khanhquang94cva@gmail.com'
 $$;
 
 alter table public.tours enable row level security;

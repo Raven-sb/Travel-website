@@ -74,8 +74,9 @@
     if (error || !data) return null;
     return {
       id: data.user_id,
-      username: data.email,
-      displayName: data.display_name || String(data.email).split("@")[0]
+      // Ưu tiên email đăng nhập thật (JWT) để khớp kiểm tra quản trị tối cao.
+      username: user.email || data.email,
+      displayName: data.display_name || String(user.email || data.email).split("@")[0]
     };
   }
 
