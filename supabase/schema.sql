@@ -94,7 +94,8 @@ create table if not exists public.messages (
   created_at timestamptz not null default now()
 );
 
--- Xóa mềm: deleted_at khác null = tin bị ẩn với khách, admin vẫn thấy/hiện lại được.
+-- Ẩn hội thoại phía ADMIN (xóa mềm): deleted_at khác null = tin thuộc hội thoại
+-- đã được admin ẩn cho gọn danh sách. Khách VẪN thấy toàn bộ tin nhắn.
 alter table public.messages add column if not exists deleted_at timestamptz;
 
 create index if not exists messages_thread_created_idx on public.messages (thread, created_at);
@@ -167,7 +168,7 @@ create policy "admins delete others" on public.admins for delete
 -- INSERT không mở trực tiếp cho client mà đi qua RPC có giới hạn tần suất.
 drop policy if exists "messages read" on public.messages;
 create policy "messages read" on public.messages for select
-  using (public.is_admin() or (customer_uid = auth.uid() and deleted_at is null));
+  using (public.is_admin() or customer_uid = auth.uid());
 
 drop policy if exists "messages customer insert" on public.messages;
 drop policy if exists "messages admin insert" on public.messages;
@@ -467,9 +468,10 @@ $$;
 revoke all on function public.send_admin_reply(text, text, text) from public, anon;
 grant execute on function public.send_admin_reply(text, text, text) to authenticated;
 
--- 8b2. Admin ẩn / hiện lại tin nhắn (xóa mềm) ------------------------------
--- delete_message / delete_thread chỉ đặt deleted_at, không xóa hẳn.
--- restore_message / restore_thread bỏ deleted_at để hiện lại.
+-- 8b2. Admin ẩn / hiện lại hội thoại (xóa mềm, chỉ phía admin) -------------
+-- delete_thread đặt deleted_at cho mọi tin của hội thoại → ẩn khỏi danh sách
+-- admin; khách vẫn thấy. restore_thread bỏ deleted_at để hiện lại.
+-- delete_message / restore_message: cấp từng tin (dự phòng, UI hiện không dùng).
 
 create or replace function public.delete_message(p_id uuid)
 returns integer

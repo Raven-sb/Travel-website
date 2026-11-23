@@ -78,7 +78,7 @@ Mở `index.html` (hoặc chạy `start.cmd` → http://localhost:8088) rồi ki
 | Đặt một tour | Đơn xuất hiện ngay trong `admin.html → Đơn đăng ký` (không cần reload) |
 | Khách bấm nút chat, gửi tin | Tin xuất hiện ngay trong `admin.html → Tin nhắn`, có badge chưa đọc |
 | Admin trả lời | Khách thấy câu trả lời ngay (Realtime; có polling dự phòng 5s) |
-| Admin ẩn tin nhắn / hội thoại | Khách không thấy tin đó nữa (trong ~5s); admin vẫn thấy và bấm mắt để hiện lại |
+| Admin ẩn hội thoại đã kết thúc | Hội thoại chuyển sang tab "Đã ẩn" cho gọn danh sách; khách VẪN thấy toàn bộ tin nhắn; bấm mắt để hiện lại |
 | Admin đổi giá / ẩn tour | Khách đang mở trang thấy thay đổi ngay |
 | Admin → Tour → Chỉnh sửa | Sửa tiêu đề, ảnh, điểm nhấn, lịch trình, thư viện ảnh → khách thấy ngay |
 | Admin → Tour → Thêm tour | Tạo tour mới trên Supabase, hiển thị ngay cho khách (không sửa `data.js`) |

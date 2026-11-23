@@ -52,6 +52,7 @@
     messages: [],
     subscribers: [],
     chatThread: null,
+    msgFilter: "active",
     contentTourId: null,
     modalCode: null,
     modalMode: null,
@@ -527,33 +528,46 @@
   }
 
   function messagesHTML() {
-    const list = chatThreads();
+    const all = chatThreads();
+    const active = all.filter(function (t) { return !!t.last; });
+    const hidden = all.filter(function (t) { return !t.last; });
+    const showHidden = state.msgFilter === "hidden";
+    const list = showHidden ? hidden : active;
+    const tabs =
+      '<button class="adm-tab' + (!showHidden ? " is-active" : "") + '" type="button" data-msg-filter="active">Đang hiện <em>' + active.length + "</em></button>" +
+      '<button class="adm-tab' + (showHidden ? " is-active" : "") + '" type="button" data-msg-filter="hidden">Đã ẩn <em>' + hidden.length + "</em></button>";
+    const head =
+      '<section class="adm-panel">' +
+        '<div class="adm-panel__head"><h2>Hội thoại với khách</h2>' +
+          '<span class="adm-sub">Ẩn hội thoại đã kết thúc cho gọn — khách vẫn thấy toàn bộ tin nhắn.</span></div>' +
+        '<div class="adm-tools"><div class="adm-tabs">' + tabs + "</div></div>";
     if (!list.length) {
-      return '<section class="adm-panel">' + emptyHTML("Chưa có tin nhắn", "Khách gửi tin từ nút trò chuyện trên trang web sẽ xuất hiện tại đây.") + "</section>";
+      const empty = showHidden
+        ? emptyHTML("Chưa có hội thoại nào bị ẩn", "Bấm nút thùng rác ở một hội thoại để ẩn nó vào đây.")
+        : emptyHTML("Chưa có tin nhắn", "Khách gửi tin từ nút trò chuyện trên trang web sẽ xuất hiện tại đây.");
+      return head + empty + "</section>";
     }
     const rows = list.map(function (t) {
-      const allHidden = !t.last;
-      const preview = allHidden ? "(Tất cả tin nhắn đã ẩn)" : String(t.last.body || "").slice(0, 90);
+      const preview = showHidden ? String(t.lastAny.body || "").slice(0, 90) : String(t.last.body || "").slice(0, 90);
+      const previewSender = showHidden ? t.lastAny.sender : t.last.sender;
       return (
-        '<tr data-chat-thread="' + V.esc(t.thread) + '"' + (allHidden ? ' class="adm-chat-row--hidden"' : "") + ">" +
+        '<tr data-chat-thread="' + V.esc(t.thread) + '"' + (showHidden ? ' class="adm-chat-row--hidden"' : "") + ">" +
           "<td><strong>" + V.esc(t.name) + "</strong>" +
-            '<span class="adm-sub">' + t.count + " tin nhắn" + (t.hidden ? " · " + t.hidden + " ẩn" : "") + "</span></td>" +
-          "<td>" + V.esc((!allHidden && t.last.sender === "admin" ? "Bạn: " : "") + preview) + "</td>" +
+            '<span class="adm-sub">' + t.count + " tin nhắn</span></td>" +
+          "<td>" + V.esc((previewSender === "admin" ? "Bạn: " : "") + preview) + "</td>" +
           "<td>" + fdatetime(t.lastAny.createdAt) + "</td>" +
           "<td>" + (t.unread ? '<span class="adm-badge adm-badge--new">' + t.unread + " mới</span>" : "—") + "</td>" +
           '<td class="adm-chat-actions">' +
             '<button class="adm-row-btn" type="button" data-chat-thread="' + V.esc(t.thread) + '">Mở</button>' +
-            (allHidden
-              ? '<button class="adm-row-btn" type="button" data-chat-restore-thread="' + V.esc(t.thread) + '" aria-label="Hiện lại hội thoại" title="Hiện lại hội thoại">' + icon("eye", 14) + "</button>"
-              : '<button class="adm-row-btn adm-row-btn--danger" type="button" data-chat-del-thread="' + V.esc(t.thread) + '" aria-label="Ẩn hội thoại" title="Ẩn hội thoại với khách">' + icon("trash", 14) + "</button>") +
+            (showHidden
+              ? '<button class="adm-row-btn" type="button" data-chat-restore-thread="' + V.esc(t.thread) + '" aria-label="Hiện lại hội thoại" title="Hiện lại trong danh sách">' + icon("eye", 14) + "</button>"
+              : '<button class="adm-row-btn adm-row-btn--danger" type="button" data-chat-del-thread="' + V.esc(t.thread) + '" aria-label="Ẩn hội thoại" title="Ẩn khỏi danh sách admin (khách vẫn thấy)">' + icon("trash", 14) + "</button>") +
           "</td>" +
         "</tr>"
       );
     }).join("");
     return (
-      '<section class="adm-panel">' +
-        '<div class="adm-panel__head"><h2>Hội thoại với khách</h2>' +
-          '<span class="adm-sub">' + list.length + " cuộc hội thoại</span></div>" +
+      head +
         '<div class="adm-table-wrap" style="border:0;border-radius:0">' +
           '<table class="adm-table"><thead><tr><th>Khách</th><th>Tin gần nhất</th><th>Thời gian</th><th>Chưa đọc</th><th></th></tr></thead>' +
           "<tbody>" + rows + "</tbody></table>" +
@@ -568,18 +582,15 @@
     const allHidden = all.length > 0 && all.every(function (m) { return !!m.deletedAt; });
     const name = (msgs.find(function (m) { return m.sender === "customer"; }) || {}).authorName || "Khách";
     const bubbles = msgs.map(function (m) {
-      const hidden = !!m.deletedAt;
-      return '<div class="adm-chat-bubble' + (m.sender === "admin" ? " is-admin" : "") + (hidden ? " is-hidden" : "") + '">' +
-        "<small>" + V.esc(m.authorName) + " · " + fdatetime(m.createdAt) + (hidden ? " · đã ẩn với khách" : "") + "</small>" +
+      return '<div class="adm-chat-bubble' + (m.sender === "admin" ? " is-admin" : "") + '">' +
+        "<small>" + V.esc(m.authorName) + " · " + fdatetime(m.createdAt) + "</small>" +
         "<p>" + V.esc(m.body) + "</p>" +
-        (hidden
-          ? '<button class="adm-chat-del adm-chat-del--restore" type="button" data-chat-restore="' + V.esc(m.id) + '" aria-label="Hiện lại tin nhắn này" title="Hiện lại với khách">' + icon("eye", 13) + "</button>"
-          : '<button class="adm-chat-del" type="button" data-chat-del="' + V.esc(m.id) + '" aria-label="Ẩn tin nhắn này" title="Ẩn với khách">' + icon("trash", 13) + "</button>") +
         "</div>";
     }).join("");
     return (
       '<div class="adm-modal__head">' +
-        '<div><h2 id="admModalTitle">' + V.esc(name) + "</h2><small>Trò chuyện trực tiếp</small></div>" +
+        '<div><h2 id="admModalTitle">' + V.esc(name) + "</h2><small>" +
+          (allHidden ? "Đã ẩn khỏi danh sách — khách vẫn thấy tin nhắn" : "Trò chuyện trực tiếp") + "</small></div>" +
         '<button class="adm-modal__close" type="button" data-close aria-label="Đóng">' + icon("x", 16) + "</button>" +
       "</div>" +
       '<div class="adm-modal__body">' +
@@ -650,41 +661,14 @@
     state.messages.forEach(function (m) { if (m.thread === thread) m.deletedAt = stamp; });
   }
 
-  async function hideChatMessage(id) {
-    if (!REMOTE || !id) return;
-    if (!window.confirm("Ẩn tin nhắn này với khách? Bạn có thể hiện lại bất cứ lúc nào.")) return;
-    try {
-      await REMOTE.chat.adminDeleteMessage(id);
-      const m = state.messages.find(function (x) { return x.id === id; });
-      if (m) m.deletedAt = new Date().toISOString();
-      afterChatMutation();
-      V.toast("Đã ẩn tin nhắn");
-    } catch (err) {
-      V.toast(err.message);
-    }
-  }
-
-  async function restoreChatMessage(id) {
-    if (!REMOTE || !id) return;
-    try {
-      await REMOTE.chat.adminRestoreMessage(id);
-      const m = state.messages.find(function (x) { return x.id === id; });
-      if (m) m.deletedAt = null;
-      afterChatMutation();
-      V.toast("Đã hiện lại tin nhắn");
-    } catch (err) {
-      V.toast(err.message);
-    }
-  }
-
   async function hideChatThread(thread) {
     if (!REMOTE || !thread) return;
-    if (!window.confirm("Ẩn toàn bộ cuộc hội thoại này với khách? Bạn có thể hiện lại bất cứ lúc nào.")) return;
+    if (!window.confirm("Ẩn hội thoại này khỏi danh sách admin cho gọn? Khách vẫn thấy toàn bộ tin nhắn. Bạn có thể hiện lại bất cứ lúc nào.")) return;
     try {
       await REMOTE.chat.adminDeleteThread(thread);
       setThreadDeleted(thread, true);
       afterChatMutation();
-      V.toast("Đã ẩn cuộc hội thoại");
+      V.toast("Đã ẩn hội thoại khỏi danh sách");
     } catch (err) {
       V.toast(err.message);
     }
@@ -696,7 +680,7 @@
       await REMOTE.chat.adminRestoreThread(thread);
       setThreadDeleted(thread, false);
       afterChatMutation();
-      V.toast("Đã hiện lại cuộc hội thoại");
+      V.toast("Đã hiện lại hội thoại");
     } catch (err) {
       V.toast(err.message);
     }
@@ -1451,6 +1435,9 @@
       const sf = e.target.closest("[data-status-filter]");
       if (sf) { state.status = sf.dataset.statusFilter; renderView(); return; }
 
+      const mf = e.target.closest("[data-msg-filter]");
+      if (mf) { state.msgFilter = mf.dataset.msgFilter; renderView(); return; }
+
       if (e.target.closest("[data-acc-add]")) { openAccountModal("add"); return; }
 
       const passBtn = e.target.closest("[data-acc-pass]");
@@ -1512,10 +1499,6 @@
 
       if (e.target.closest("[data-acc-create]")) { createAccount(); return; }
       if (e.target.closest("[data-acc-reset]")) { resetAccountPassword(); return; }
-      const restoreMsgBtn = e.target.closest("[data-chat-restore]");
-      if (restoreMsgBtn) { restoreChatMessage(restoreMsgBtn.dataset.chatRestore); return; }
-      const delMsgBtn = e.target.closest("[data-chat-del]");
-      if (delMsgBtn) { hideChatMessage(delMsgBtn.dataset.chatDel); return; }
       if (e.target.closest("[data-chat-restore-thread]")) { restoreChatThread(state.chatThread); return; }
       if (e.target.closest("[data-chat-del-thread]")) { hideChatThread(state.chatThread); return; }
       if (e.target.closest("[data-chat-send]")) { sendChatReply(); return; }
