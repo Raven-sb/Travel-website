@@ -6,6 +6,9 @@
   const LS_LANG = "vv:lang";
   const LS_FAVS = "vv:favs";
   const LS_TOUR_OVERRIDES = "v4t:tourOverrides";
+  const LS_TOUR_CONTENT = "v4t:tourContent";
+  const LS_CHAT_THREAD = "v4t:chatThread";
+  const LS_CHAT_NAME = "v4t:chatName";
   const state = { lang: localStorage.getItem(LS_LANG) === "en" ? "en" : "vi" };
   const PAGE = document.body ? document.body.dataset.page || "" : "";
 
@@ -16,6 +19,7 @@
     arrow: '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
     check: '<path d="m4.5 12.5 5 5L19.5 7"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    send: '<path d="m4 12 16-8-6 16-2.5-6.5L4 12Z"/>',
     shield: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"/><path d="m9 12 2 2 4-4"/>',
     users: '<path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="3.5"/><path d="M17 11a3.5 3.5 0 1 0 0-7"/><path d="M19.5 20v-1.5a4 4 0 0 0-3-3.8"/>',
     calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>',
@@ -95,6 +99,19 @@
     return ov && typeof ov === "object" ? ov : {};
   }
 
+  function deepMerge(target, patch) {
+    if (!patch || typeof patch !== "object") return target;
+    Object.keys(patch).forEach(function (k) {
+      const v = patch[k];
+      if (v === undefined) return;
+      const cur = target[k];
+      if (v && typeof v === "object" && !Array.isArray(v) &&
+          cur && typeof cur === "object" && !Array.isArray(cur)) deepMerge(cur, v);
+      else target[k] = v;
+    });
+    return target;
+  }
+
   function applyTourOverrides(ovArg) {
     const ov = ovArg || window.VV_TOUR_OVERRIDES || getTourOverrides();
     DATA.tours.forEach(function (tr) {
@@ -105,17 +122,38 @@
       tr.featured = o.featured === true;
     });
   }
+
+  function applyTourContent(contentArg) {
+    const content = contentArg || readJSON(LS_TOUR_CONTENT, {}) || {};
+    DATA.tours.forEach(function (tr) {
+      deepMerge(tr, content[tr.id] || {});
+    });
+  }
+
   applyTourOverrides();
+  applyTourContent();
 
   let overridesReady = Promise.resolve();
   if (window.V4T_API && window.V4T_API.enabled) {
-    const fetched = window.V4T_API.fetchOverrides().then(function (ov) {
-      try { localStorage.setItem(LS_TOUR_OVERRIDES, JSON.stringify(ov)); } catch (e) { /* ignore */ }
-      applyTourOverrides(ov);
+    const api = window.V4T_API;
+    const applyCatalog = function (cat) {
+      try {
+        localStorage.setItem(LS_TOUR_OVERRIDES, JSON.stringify(cat.overrides || {}));
+        localStorage.setItem(LS_TOUR_CONTENT, JSON.stringify(cat.content || {}));
+      } catch (e) { /* ignore */ }
+      applyTourOverrides(cat.overrides || {});
+      applyTourContent(cat.content || {});
       window.dispatchEvent(new CustomEvent("vv:overrides"));
-    }).catch(function () { /* giữ bản cache, không chặn trang */ });
+    };
+    const fetched = api.fetchCatalog().then(applyCatalog)
+      .catch(function () { /* giữ bản cache, không chặn trang */ });
     const timeout = new Promise(function (resolve) { setTimeout(resolve, 4000); });
     overridesReady = Promise.race([fetched, timeout]);
+
+    // Admin đổi giá / nội dung → khách đang mở trang cũng cập nhật ngay.
+    api.subscribeCatalog(function () {
+      api.fetchCatalog().then(applyCatalog).catch(function () { /* ignore */ });
+    });
   }
 
   function whenReady(fn) {
@@ -353,6 +391,163 @@
         toggle.setAttribute("aria-expanded", "false");
       });
     });
+  }
+
+  function chatThreadId() {
+    let id = "";
+    try { id = localStorage.getItem(LS_CHAT_THREAD) || ""; } catch (e) { /* ignore */ }
+    if (!id) {
+      const bytes = new Uint8Array(16);
+      if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+      else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+      id = "th_" + Array.from(bytes).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+      try { localStorage.setItem(LS_CHAT_THREAD, id); } catch (e) { /* ignore */ }
+    }
+    return id;
+  }
+
+  function chatHTML() {
+    return (
+      '<button class="v4t-chat__fab" id="v4tChatFab" type="button" aria-expanded="false" aria-controls="v4tChatPanel">' +
+        icon("chat", 22) +
+        '<em class="v4t-chat__badge" id="v4tChatBadge" hidden>0</em>' +
+      "</button>" +
+      '<section class="v4t-chat__panel" id="v4tChatPanel" hidden>' +
+        '<header class="v4t-chat__head"><strong>Trò chuyện với Vietnam4trip</strong>' +
+          '<button class="v4t-chat__close" id="v4tChatClose" type="button" aria-label="Đóng">' + icon("x", 16) + "</button>" +
+        "</header>" +
+        '<div class="v4t-chat__msgs" id="v4tChatMsgs"></div>' +
+        '<p class="v4t-chat__note" id="v4tChatNote" hidden></p>' +
+        '<form class="v4t-chat__form" id="v4tChatForm" novalidate>' +
+          '<input id="v4tChatName" type="text" maxlength="80" autocomplete="name" placeholder="Tên của bạn" />' +
+          '<div class="v4t-chat__row">' +
+            '<input id="v4tChatInput" type="text" maxlength="2000" autocomplete="off" placeholder="Nhập tin nhắn…" />' +
+            '<button type="submit" aria-label="Gửi">' + icon("send", 17) + "</button>" +
+          "</div>" +
+        "</form>" +
+      "</section>"
+    );
+  }
+
+  function initChat() {
+    const api = window.V4T_API;
+    if (!api || !api.enabled || !api.chat) return;
+    const wrap = document.getElementById("v4tChat");
+    if (!wrap) return;
+
+    const fab = document.getElementById("v4tChatFab");
+    const panel = document.getElementById("v4tChatPanel");
+    const msgsEl = document.getElementById("v4tChatMsgs");
+    const noteEl = document.getElementById("v4tChatNote");
+    const form = document.getElementById("v4tChatForm");
+    const input = document.getElementById("v4tChatInput");
+    const nameInput = document.getElementById("v4tChatName");
+    const badge = document.getElementById("v4tChatBadge");
+    const thread = chatThreadId();
+
+    let messages = [];
+    let open = false;
+    let unread = 0;
+    let subscribed = false;
+    let busy = false;
+
+    try { nameInput.value = localStorage.getItem(LS_CHAT_NAME) || ""; } catch (e) { /* ignore */ }
+
+    function note(msg) {
+      noteEl.textContent = msg || "";
+      noteEl.hidden = !msg;
+    }
+
+    function paint() {
+      msgsEl.innerHTML = messages.length
+        ? messages.map(function (m) {
+            const time = new Date(m.createdAt).toLocaleTimeString(state.lang === "vi" ? "vi-VN" : "en-GB", {
+              hour: "2-digit", minute: "2-digit"
+            });
+            return '<div class="v4t-chat__msg' + (m.sender === "admin" ? " is-admin" : "") + '">' +
+              "<small>" + esc(m.authorName) + " · " + esc(time) + "</small>" +
+              "<p>" + esc(m.body) + "</p></div>";
+          }).join("")
+        : '<p class="v4t-chat__empty">Chưa có tin nhắn. Gửi câu hỏi để chúng tôi hỗ trợ ngay!</p>';
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    }
+
+    function paintBadge() {
+      badge.hidden = unread === 0;
+      badge.textContent = unread > 99 ? "99+" : String(unread);
+    }
+
+    function setOpen(next) {
+      open = next;
+      wrap.classList.toggle("is-open", open);
+      panel.hidden = !open;
+      fab.setAttribute("aria-expanded", String(open));
+      if (open) {
+        unread = 0;
+        paintBadge();
+        loadMessages();
+        input.focus();
+      }
+    }
+
+    async function loadMessages() {
+      try {
+        messages = await api.chat.list(thread);
+        paint();
+        note("");
+        if (open) await api.chat.markRead(thread);
+      } catch (err) {
+        note(err && err.message ? err.message : "Không tải được tin nhắn.");
+      }
+    }
+
+    function subscribe() {
+      if (subscribed) return;
+      subscribed = true;
+      api.chat.subscribe(thread, function (m, kind) {
+        if (kind === "insert") {
+          if (!messages.some(function (x) { return x.id === m.id; })) messages.push(m);
+          if (m.sender === "admin" && !open) { unread++; paintBadge(); }
+        } else if (kind === "update") {
+          const idx = messages.findIndex(function (x) { return x.id === m.id; });
+          if (idx > -1) messages[idx] = m;
+        }
+        paint();
+        if (open) api.chat.markRead(thread).catch(function () { /* ignore */ });
+      });
+      // Dự phòng khi Realtime không kết nối được.
+      window.setInterval(function () { if (!document.hidden && !busy) loadMessages(); }, 8000);
+    }
+
+    fab.addEventListener("click", function () { setOpen(!open); subscribe(); });
+    document.getElementById("v4tChatClose").addEventListener("click", function () { setOpen(false); fab.focus(); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && open) { setOpen(false); fab.focus(); }
+    });
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text || busy) return;
+      const name = nameInput.value.trim();
+      if (name) { try { localStorage.setItem(LS_CHAT_NAME, name); } catch (err) { /* ignore */ } }
+      busy = true;
+      form.querySelector("button[type=submit]").disabled = true;
+      try {
+        await api.chat.send(thread, text, name || "Khách");
+        input.value = "";
+        note("");
+        await loadMessages();
+      } catch (err) {
+        note(err && err.message ? err.message : "Không gửi được tin nhắn.");
+      } finally {
+        busy = false;
+        form.querySelector("button[type=submit]").disabled = false;
+        input.focus();
+      }
+    });
+
+    loadMessages();
   }
 
   function applyStatic() {
@@ -598,6 +793,14 @@
       fab.id = "vvFab";
       fab.innerHTML = fabHTML();
       document.body.appendChild(fab);
+
+      if (window.V4T_API && window.V4T_API.enabled) {
+        const chat = document.createElement("div");
+        chat.className = "v4t-chat";
+        chat.id = "v4tChat";
+        chat.innerHTML = chatHTML();
+        document.body.appendChild(chat);
+      }
     }
     document.documentElement.lang = state.lang;
     document.body.classList.toggle("lang-en", state.lang === "en");
@@ -609,6 +812,7 @@
     bindFavoriteButtons();
     bindLanguage();
     bindFab();
+    initChat();
     reveal();
   }
 

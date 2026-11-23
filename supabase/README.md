@@ -1,84 +1,84 @@
-# Vietnam4trip — đưa website lên GitHub Pages + Supabase (miễn phí)
+# Vietnam4trip — Supabase Realtime (khách ↔ admin)
 
-Bộ hồ sơ này biến website thành bản chạy trên internet: trang tĩnh nằm trên GitHub Pages,
-dữ liệu (đơn đặt tour, giá tour, tài khoản admin) nằm trên Supabase.
+Website tĩnh + Supabase làm backend: đơn đặt tour, nội dung tour, tài khoản admin
+và tin nhắn chat đều nằm trên Supabase. Khách và admin thấy thay đổi **ngay lập tức**
+nhờ Supabase Realtime.
 
-## 1. Tạo dự án Supabase
+## 1. Tạo project (nếu chưa có)
 
-1. Vào https://supabase.com → đăng ký (miễn phí) → **New project**.
-2. Đặt tên (ví dụ `vietnam4trip`), chọn region **Southeast Asia (Singapore)**, đặt mật khẩu database.
-3. Đợi dự án khởi tạo xong (~1 phút).
+https://supabase.com → **New project** → region **Southeast Asia (Singapore)**.
 
-## 2. Nạp cấu trúc dữ liệu
+## 2. Chạy schema
 
-1. Trong Supabase, mở **SQL Editor → New query**.
-2. Dán toàn bộ nội dung file `supabase/schema.sql` trong dự án này → bấm **Run**.
-   File sẽ tạo bảng tour, bảng giá/trạng thái tour, bảng đơn đặt, bảng admin,
-   phân quyền RLS và 2 hàm: `create_booking` (khách đặt tour) và `grant_admin` (cấp quyền admin).
+**SQL Editor → New query** → dán toàn bộ `supabase/schema.sql` → **Run**.
 
-## 3. Tạo tài khoản admin đầu tiên
+File này tạo: `tours`, `tour_overrides`, `tour_content`, `bookings`, `admins`,
+`messages`; bật RLS + Realtime; tạo các hàm `create_booking`, `grant_admin`,
+`mark_thread_read`, `mark_customer_read`. Chạy lại nhiều lần cũng được.
 
-1. Supabase → **Authentication → Users → Add user**:
-   nhập email + mật khẩu, bật **Auto Confirm User** → Create.
-2. Mở **SQL Editor**, chạy (thay email của bạn):
+## 3. Bật đăng nhập ẩn danh (bắt buộc để chat)
 
-   ```sql
-   insert into public.admins (user_id, email, display_name)
-   select id, email, 'Chủ Vietnam4trip'
-   from auth.users
-   where email = 'email-cua-ban@example.com';
-   ```
+**Authentication → Providers → Allow anonymous sign-ins → Bật → Save.**
 
-3. Từ nay, admin đăng nhập tại `admin.html` bằng **email + mật khẩu** này.
-   Thêm nhân viên: tạo user ở bước 1, rồi vào admin → **Tài khoản → Thêm tài khoản** và nhập email người đó.
+Khách không cần tạo tài khoản: khi mở khung chat, website tự tạo một phiên ẩn danh.
+Mỗi khách chỉ đọc được tin nhắn của chính mình (RLS), admin đọc được tất cả.
 
-## 4. Điền khoá kết nối
+## 4. Tạo tài khoản admin đầu tiên
 
-1. Supabase → **Project Settings → API**: copy **Project URL** và **anon public key**.
-2. Mở `js/supabase-config.js`, điền:
+1. **Authentication → Users → Add user** → email + mật khẩu → bật **Auto Confirm User**.
+2. **SQL Editor** → chạy (thay email của bạn):
 
-   ```js
-   window.V4T_SUPABASE = {
-     url: "https://xxxxx.supabase.co",
-     anonKey: "eyJhbGciOi..."
-   };
-   ```
+```sql
+insert into public.admins (user_id, email, display_name)
+select id, email, 'Chủ Vietnam4trip'
+from auth.users
+where email = 'email-cua-ban@example.com';
+```
 
-   Anon key là khoá công khai (an toàn khi nằm trong trang), dữ liệu được bảo vệ bởi RLS.
+3. Mở `admin.html`, đăng nhập bằng email + mật khẩu đó.
+4. Thêm nhân viên: tạo user ở bước 1, rồi vào **Tài khoản → Thêm tài khoản** trong admin.
 
-## 5. Thử trên máy trước khi đưa lên
+## 5. Điền khóa kết nối
 
-- Nhấp đôi `start.cmd` → mở http://localhost:8088.
-- Vào `/admin.html` đăng nhập bằng email vừa cấp quyền.
-- Đặt thử một tour trên website, kiểm tra đơn xuất hiện trong admin.
-- Khi `js/supabase-config.js` còn trống, website tự dùng backend Node (không cần Supabase).
+**Project Settings → API** → copy **Project URL** và **anon public key**, điền vào
+`js/supabase-config.js`:
 
-## 6. Đưa lên GitHub Pages
+```js
+window.V4T_SUPABASE = {
+  url: "https://xxxxx.supabase.co",
+  anonKey: "eyJhbGciOi..."
+};
+```
 
-1. Tạo repository **Public** trên https://github.com/new (ví dụ `vietnam4trip`).
-2. Trong thư mục dự án, chạy (thay URL repo của bạn):
+⚠️ Chỉ dùng **anon public key**. Không bao giờ put `service_role key` vào file này.
+Dữ liệu được bảo vệ bởi RLS, anon key an toàn khi nằm trong trang public.
 
-   ```bash
-   git remote add origin https://github.com/<tài-khoản>/vietnam4trip.git
-   git branch -M main
-   git push -u origin main
-   ```
+## 6. Chạy thử
 
-3. GitHub → repo → **Settings → Pages**:
-   - Source: **Deploy from a branch**
-   - Branch: **main**, thư mục **/ (root)** → Save.
-4. Sau ~1 phút, website có tại `https://<tài-khoản>.github.io/vietnam4trip/`,
-   trang quản trị tại `.../admin.html`.
+Mở `index.html` (hoặc chạy `start.cmd` → http://localhost:8088) rồi kiểm tra:
 
-Lưu ý: thư mục `data/` (database SQLite của bản Node) không được đưa lên GitHub —
-đã có trong `.gitignore`.
+| Hành động | Kết quả mong đợi |
+|---|---|
+| Đặt một tour | Đơn xuất hiện ngay trong `admin.html → Đơn đăng ký` (không cần reload) |
+| Khách bấm nút chat, gửi tin | Tin xuất hiện ngay trong `admin.html → Tin nhắn`, có badge chưa đọc |
+| Admin trả lời | Khách thấy câu trả lời ngay (Realtime; có polling dự phòng 8s) |
+| Admin đổi giá / ẩn tour | Khách đang mở trang thấy thay đổi ngay |
+| Admin → Tour → Nội dung | Sửa tiêu đề, ảnh, lịch trình (JSON) → khách thấy ngay |
 
-## 7. Những điều cần biết ở gói miễn phí
+Nếu chat báo lỗi "Không mở được phiên trò chuyện", kiểm tra lại bước 3.
 
-- Dự án Supabase miễn phí **tự tạm dừng nếu ~7 ngày không có truy cập**; vào dashboard bấm
-  **Restore/Resume** là chạy lại. Phù hợp để thử nghiệm; khi kinh doanh thật nên nâng gói Pro
-  hoặc chuyển về backend Node trên VPS (khi đó xoá trống `js/supabase-config.js` là tự quay lại chế độ Node).
-- Supabase miễn phí giới hạn email xác thực (dùng SMTP mặc định); với 2–3 admin thì đủ.
-- Nhớ sao lưu định kỳ: Supabase → Table Editor → `bookings` → Export CSV.
-- Khi có tên miền riêng (vd `vietnam4trip.vn`): thêm **Custom domain** trong Settings → Pages,
-  rồi trỏ DNS theo hướng dẫn của GitHub.
+## 7. Đưa lên GitHub Pages
+
+1. Push code lên GitHub (remote đã trỏ tới `Raven-sb/Travel-website`).
+2. Repo → **Settings → Pages** → Source: **Deploy from a branch** → `main` / `(root)`.
+3. Website: `https://raven-sb.github.io/Travel-website/`.
+4. Nhớ rằng `js/supabase-config.js` phải đã điền khóa trước khi deploy.
+
+## 8. Lưu ý bảo mật & chi phí
+
+- Gói free Supabase **tự tạm dừng sau ~7 ngày không truy cập** → vào dashboard bấm Restore.
+- Khách có thể spam đơn/chat: cân nhắc thêm CAPTCHA hoặc giới hạn sau này.
+- Thông tin thẻ tín dụng trong form chỉ để giao diện, **không gửi/lưu**. Chưa có cổng thanh toán thật.
+- Sao lưu định kỳ: Table Editor → `bookings` / `messages` → Export CSV.
+- Muốn quay lại backend Node: xóa trống 2 chuỗi trong `js/supabase-config.js`
+  (cần cài Node ≥ 22.5 và chạy `start.cmd`).

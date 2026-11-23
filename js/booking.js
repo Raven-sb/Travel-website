@@ -337,7 +337,9 @@
         '<a class="btn btn--ghost" href="tours.html">' + V.esc(V.t("book.browse")) + "</a>" +
         '<a class="btn btn--primary" href="index.html">' + V.esc(V.t("book.home")) + V.icon("arrow", 16) + "</a>" +
       "</div>" +
-      '<p class="demo-tag">' + V.esc(V.t("book.demoNote")) + "</p>";
+      (window.V4T_API && window.V4T_API.enabled
+        ? ""
+        : '<p class="demo-tag">' + V.esc(V.t("book.demoNote")) + "</p>");
   }
 
   function applyPromo() {

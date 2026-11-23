@@ -19,7 +19,7 @@
     adventure: "Phiêu lưu",
     luxury: "Nghỉ dưỡng"
   };
-  const PAYMENTS = { later: "Thanh toán sau", card: "Thẻ tín dụng" };
+  const PAYMENTS = { later: "Thanh toán sau", card: "Thẻ tín dụng", transfer: "Chuyển khoản" };
   const COUNTRIES = { vn: "Việt Nam", us: "Hoa Kỳ", uk: "Anh", au: "Úc", fr: "Pháp" };
 
   const ICONS = {
@@ -34,7 +34,9 @@
     users: '<path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="3.5"/><path d="M17 11a3.5 3.5 0 1 0 0-7"/><path d="M19.5 20v-1.5a4 4 0 0 0-3-3.8"/>',
     trash: '<path d="M4.5 7h15"/><path d="M9 7V4.8h6V7"/><path d="M6.5 7l.9 12.2a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
-    plus: '<path d="M12 5v14M5 12h14"/>'
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    chat: '<path d="M12 4.2a7.8 7.8 0 1 0 0 15.6c.9 0 1.8-.1 2.6-.4L19 21l-.4-4.1a7.8 7.8 0 0 0-6.6-12.7Z"/><path d="M8.6 12h.01M12 12h.01M15.4 12h.01"/>',
+    send: '<path d="m4 12 16-8-6 16-2.5-6.5L4 12Z"/>'
   };
 
   const state = {
@@ -45,6 +47,9 @@
     bookings: [],
     tours: [],
     admins: [],
+    messages: [],
+    chatThread: null,
+    contentTourId: null,
     modalCode: null,
     modalMode: null,
     accountTarget: null
@@ -90,6 +95,19 @@
     return fdate(iso.slice(0, 10)) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   }
 
+  function deepMerge(target, patch) {
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) return target;
+    Object.keys(patch).forEach(function (k) {
+      const v = patch[k];
+      if (v === undefined) return;
+      const cur = target[k];
+      if (v && typeof v === "object" && !Array.isArray(v) &&
+          cur && typeof cur === "object" && !Array.isArray(cur)) deepMerge(cur, v);
+      else target[k] = v;
+    });
+    return target;
+  }
+
   function statusOf(rec) {
     return STATUS.some(function (s) { return s.key === rec.status; }) ? rec.status : "new";
   }
@@ -107,6 +125,13 @@
     const n = state.bookings.filter(function (b) { return statusOf(b) === "new"; }).length;
     els.newBadge.hidden = n === 0;
     els.newBadge.textContent = n > 99 ? "99+" : String(n);
+  }
+
+  function updateMsgBadge() {
+    const n = state.messages.filter(function (m) { return m.sender === "customer" && !m.adminRead; }).length;
+    if (!els.msgBadge) return;
+    els.msgBadge.hidden = n === 0;
+    els.msgBadge.textContent = n > 99 ? "99+" : String(n);
   }
 
   /* API ------------------------------------------------------------------- */
@@ -154,6 +179,33 @@
     byId("admPass").focus();
   }
 
+  let realtimeStarted = false;
+  function subscribeRealtime() {
+    if (!REMOTE || realtimeStarted) return;
+    realtimeStarted = true;
+    let timer = null;
+    const refresh = function () {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(function () {
+        if (els.shell.hidden || document.hidden) return;
+        load();
+      }, 250);
+    };
+    REMOTE.subscribeCatalog(refresh);
+    REMOTE.subscribeBookings(refresh);
+    REMOTE.chat.subscribeAdmin(function (m, kind) {
+      if (kind === "insert" && !state.messages.some(function (x) { return x.id === m.id; })) {
+        state.messages.push(m);
+      } else if (kind === "update") {
+        const idx = state.messages.findIndex(function (x) { return x.id === m.id; });
+        if (idx > -1) state.messages[idx] = m;
+      }
+      updateMsgBadge();
+      if (state.view === "messages") refresh();
+      if (kind === "insert" && state.chatThread === m.thread && !els.modal.hidden) openChat(m.thread);
+    });
+  }
+
   function enterShell(admin) {
     state.me = admin;
     els.login.hidden = true;
@@ -166,6 +218,7 @@
     els.who.textContent = "Chào, " + (admin.displayName || admin.username);
     renderChrome();
     load();
+    subscribeRealtime();
   }
 
   async function loginSubmit(e) {
@@ -214,7 +267,8 @@
   const VIEW_META = {
     dashboard: { title: "Dashboard", sub: "Tổng quan hoạt động kinh doanh" },
     bookings: { title: "Đơn đăng ký", sub: "Theo dõi và xử lý đơn của khách" },
-    tours: { title: "Quản lý tour", sub: "Giá bán, trạng thái và tour nổi bật" },
+    messages: { title: "Tin nhắn", sub: "Trò chuyện trực tiếp với khách hàng" },
+    tours: { title: "Quản lý tour", sub: "Giá bán, nội dung và trạng thái tour" },
     accounts: { title: "Tài khoản", sub: "Người dùng được vào khu quản trị" }
   };
 
@@ -257,13 +311,20 @@
     els.view.innerHTML = loadingHTML();
     try {
       if (view === "dashboard") {
-        const results = await Promise.all([api("/bookings"), api("/tours")]);
+        const jobs = [api("/bookings"), api("/tours")];
+        if (REMOTE) jobs.push(REMOTE.chat.adminList());
+        const results = await Promise.all(jobs);
         state.bookings = results[0].bookings;
         state.tours = results[1].tours;
+        if (REMOTE) { state.messages = results[2]; updateMsgBadge(); }
         updateBadge();
       } else if (view === "bookings") {
         state.bookings = (await api("/bookings")).bookings;
         updateBadge();
+      } else if (view === "messages") {
+        if (!REMOTE) throw new Error("Tính năng chat cần kết nối Supabase.");
+        state.messages = await REMOTE.chat.adminList();
+        updateMsgBadge();
       } else if (view === "tours") {
         state.tours = (await api("/tours")).tours;
       } else if (view === "accounts") {
@@ -278,6 +339,7 @@
 
   function renderView() {
     if (state.view === "bookings") els.view.innerHTML = bookingsHTML();
+    else if (state.view === "messages") els.view.innerHTML = messagesHTML();
     else if (state.view === "tours") els.view.innerHTML = toursHTML();
     else if (state.view === "accounts") els.view.innerHTML = accountsHTML();
     else els.view.innerHTML = dashboardHTML();
@@ -415,6 +477,106 @@
     );
   }
 
+  /* Messages -------------------------------------------------------------- */
+  function chatThreads() {
+    const map = {};
+    state.messages.forEach(function (m) {
+      const cur = map[m.thread] || { thread: m.thread, last: m, unread: 0, name: "Khách", count: 0 };
+      if (m.sender === "customer") cur.name = m.authorName || cur.name;
+      if (!cur.last || String(m.createdAt) > String(cur.last.createdAt)) cur.last = m;
+      if (m.sender === "customer" && !m.adminRead) cur.unread++;
+      cur.count++;
+      map[m.thread] = cur;
+    });
+    return Object.keys(map).map(function (k) { return map[k]; })
+      .sort(function (a, b) { return String(b.last.createdAt).localeCompare(String(a.last.createdAt)); });
+  }
+
+  function messagesHTML() {
+    const list = chatThreads();
+    if (!list.length) {
+      return '<section class="adm-panel">' + emptyHTML("Chưa có tin nhắn", "Khách gửi tin từ nút trò chuyện trên trang web sẽ xuất hiện tại đây.") + "</section>";
+    }
+    const rows = list.map(function (t) {
+      const preview = String(t.last.body || "").slice(0, 90);
+      return (
+        '<tr data-chat-thread="' + V.esc(t.thread) + '">' +
+          "<td><strong>" + V.esc(t.name) + "</strong>" +
+            '<span class="adm-sub">' + t.count + " tin nhắn</span></td>" +
+          "<td>" + V.esc((t.last.sender === "admin" ? "Bạn: " : "") + preview) + "</td>" +
+          "<td>" + fdatetime(t.last.createdAt) + "</td>" +
+          "<td>" + (t.unread ? '<span class="adm-badge adm-badge--new">' + t.unread + " mới</span>" : "—") + "</td>" +
+          '<td><button class="adm-row-btn" type="button" data-chat-thread="' + V.esc(t.thread) + '">Mở</button></td>' +
+        "</tr>"
+      );
+    }).join("");
+    return (
+      '<section class="adm-panel">' +
+        '<div class="adm-panel__head"><h2>Hội thoại với khách</h2>' +
+          '<span class="adm-sub">' + list.length + " cuộc hội thoại</span></div>" +
+        '<div class="adm-table-wrap" style="border:0;border-radius:0">' +
+          '<table class="adm-table"><thead><tr><th>Khách</th><th>Tin gần nhất</th><th>Thời gian</th><th>Chưa đọc</th><th></th></tr></thead>' +
+          "<tbody>" + rows + "</tbody></table>" +
+        "</div>" +
+      "</section>"
+    );
+  }
+
+  function chatModalHTML(thread) {
+    const msgs = state.messages.filter(function (m) { return m.thread === thread; }).slice(-100);
+    const name = (msgs.find(function (m) { return m.sender === "customer"; }) || {}).authorName || "Khách";
+    const bubbles = msgs.map(function (m) {
+      return '<div class="adm-chat-bubble' + (m.sender === "admin" ? " is-admin" : "") + '">' +
+        "<small>" + V.esc(m.authorName) + " · " + fdatetime(m.createdAt) + "</small>" +
+        "<p>" + V.esc(m.body) + "</p></div>";
+    }).join("");
+    return (
+      '<div class="adm-modal__head">' +
+        '<div><h2 id="admModalTitle">' + V.esc(name) + "</h2><small>Trò chuyện trực tiếp</small></div>" +
+        '<button class="adm-modal__close" type="button" data-close aria-label="Đóng">' + icon("x", 16) + "</button>" +
+      "</div>" +
+      '<div class="adm-modal__body">' +
+        '<div class="adm-chat-log">' + (bubbles || '<p class="adm-sub">Chưa có tin nhắn.</p>') + "</div>" +
+        '<div class="adm-field"><label for="admChatText">Trả lời khách</label>' +
+          '<textarea id="admChatText" class="adm-note-area" rows="3" placeholder="Nhập câu trả lời…"></textarea></div>' +
+      "</div>" +
+      '<div class="adm-modal__foot">' +
+        '<button class="btn btn--ghost btn--sm" type="button" data-close>Đóng</button>' +
+        '<button class="btn btn--primary btn--sm" type="button" data-chat-send>' + icon("send", 15) + " Gửi trả lời</button>" +
+      "</div>"
+    );
+  }
+
+  function openChat(thread) {
+    state.chatThread = thread;
+    openModal(chatModalHTML(thread));
+    const log = els.modalCard.querySelector(".adm-chat-log");
+    if (log) log.scrollTop = log.scrollHeight;
+    if (REMOTE) {
+      REMOTE.chat.adminMarkRead(thread).then(function () {
+        state.messages.forEach(function (m) { if (m.thread === thread) m.adminRead = true; });
+        updateMsgBadge();
+        if (state.view === "messages") renderView();
+      }).catch(function () { /* ignore */ });
+    }
+  }
+
+  async function sendChatReply() {
+    if (!state.chatThread || !REMOTE) return;
+    const input = byId("admChatText");
+    const text = input ? input.value.trim() : "";
+    if (!text) { V.toast("Nhập nội dung trả lời"); return; }
+    try {
+      const msg = await REMOTE.chat.adminReply(state.chatThread, text, state.me.displayName);
+      state.messages.push(msg);
+      if (input) input.value = "";
+      openChat(state.chatThread);
+      V.toast("Đã gửi câu trả lời");
+    } catch (err) {
+      V.toast(err.message);
+    }
+  }
+
   /* Tours ----------------------------------------------------------------- */
   function toursHTML() {
     const cards = state.tours.map(function (tr) {
@@ -441,6 +603,7 @@
             '<div class="adm-tour__foot">' +
               '<button class="btn btn--primary btn--sm" type="button" data-tour-save>Lưu thay đổi</button>' +
               '<button class="btn btn--ghost btn--sm" type="button" data-tour-base>Giá gốc</button>' +
+              (REMOTE ? '<button class="btn btn--ghost btn--sm" type="button" data-tour-content>Nội dung</button>' : "") +
             "</div>" +
           "</div>" +
         "</article>"
@@ -451,7 +614,7 @@
       '<div class="adm-tools" style="margin-bottom:14px">' +
         '<p style="font-size:.8rem;color:var(--muted);margin:0">' +
           (REMOTE
-            ? "Thay đổi được lưu vào Supabase và áp dụng cho khách ngay khi họ tải lại trang."
+            ? "Lưu trên Supabase — khách đang mở trang thấy thay đổi ngay (Realtime). Nút Nội dung để sửa tiêu đề, ảnh, lịch trình…"
             : "Thay đổi lưu trên máy chủ và áp dụng cho mọi khách truy cập ngay khi họ tải lại trang.") +
         "</p>" +
       "</div>" +
@@ -470,7 +633,8 @@
     return {
       price: price,
       active: card.querySelector("[data-tour-active]").checked,
-      featured: card.querySelector("[data-tour-featured]").checked
+      featured: card.querySelector("[data-tour-featured]").checked,
+      content: tour ? JSON.parse(JSON.stringify(tour._content || {})) : {}
     };
   }
 
@@ -536,6 +700,89 @@
       const res = await api("/tours/" + encodeURIComponent(tour.id), { method: "PUT", body: body });
       paintTour(card, res.tour);
       V.toast("Đã khôi phục giá gốc");
+    } catch (err) {
+      V.toast(err.message);
+    }
+  }
+
+  function tourContentModalHTML(tour) {
+    const c = tour._content || {};
+    const title = c.title || {};
+    const tagline = c.tagline || {};
+    const val = function (v) { return V.esc(v == null ? "" : v); };
+    return (
+      '<div class="adm-modal__head">' +
+        '<div><h2 id="admModalTitle">Nội dung tour</h2><small>' + V.esc(tour.title.vi) + "</small></div>" +
+        '<button class="adm-modal__close" type="button" data-close aria-label="Đóng">' + icon("x", 16) + "</button>" +
+      "</div>" +
+      '<div class="adm-modal__body">' +
+        '<div class="adm-form">' +
+          '<div class="adm-form__2col">' +
+            '<div class="adm-field"><label for="tcTitleVi">Tiêu đề (VI)</label><input id="tcTitleVi" type="text" value="' + val(title.vi) + '" /></div>' +
+            '<div class="adm-field"><label for="tcTitleEn">Tiêu đề (EN)</label><input id="tcTitleEn" type="text" value="' + val(title.en) + '" /></div>' +
+            '<div class="adm-field"><label for="tcTagVi">Mô tả ngắn (VI)</label><input id="tcTagVi" type="text" value="' + val(tagline.vi) + '" /></div>' +
+            '<div class="adm-field"><label for="tcTagEn">Mô tả ngắn (EN)</label><input id="tcTagEn" type="text" value="' + val(tagline.en) + '" /></div>' +
+            '<div class="adm-field"><label for="tcImg">Ảnh đại diện (URL/file)</label><input id="tcImg" type="text" value="' + val(c.img) + '" /></div>' +
+            '<div class="adm-field"><label for="tcBadge">Nhãn (bestseller/sale/new…)</label><input id="tcBadge" type="text" value="' + val(c.badge) + '" /></div>' +
+            '<div class="adm-field"><label for="tcRating">Đánh giá</label><input id="tcRating" type="number" min="0" max="5" step="0.1" value="' + val(c.rating) + '" /></div>' +
+            '<div class="adm-field"><label for="tcOldPrice">Giá cũ (₫, để trống nếu không có)</label><input id="tcOldPrice" type="number" min="0" step="50000" value="' + val(c.oldPrice) + '" /></div>' +
+          "</div>" +
+          '<div class="adm-field"><label for="tcJson">Nội dung nâng cao (JSON) — lịch trình, điểm nhấn, thư viện ảnh…</label>' +
+            '<textarea id="tcJson" class="adm-note-area adm-json" rows="10" spellcheck="false">' + V.esc(JSON.stringify(c, null, 2)) + "</textarea></div>" +
+          '<p class="adm-sub">Các field ở trên sẽ ghi đè vào JSON. Để trống field nào thì giữ nguyên giá trị gốc từ code.</p>' +
+        "</div>" +
+      "</div>" +
+      '<div class="adm-modal__foot">' +
+        '<button class="btn btn--ghost btn--sm" type="button" data-close>Hủy</button>' +
+        '<button class="btn btn--primary btn--sm" type="button" data-content-save>Lưu nội dung</button>' +
+      "</div>"
+    );
+  }
+
+  function openTourContent(card) {
+    const tour = tourFromCard(card);
+    if (!tour) return;
+    state.contentTourId = tour.id;
+    openModal(tourContentModalHTML(tour));
+  }
+
+  async function saveTourContent() {
+    const tour = state.tours.find(function (t) { return t.id === state.contentTourId; });
+    if (!tour) return;
+    let patch;
+    try {
+      patch = JSON.parse(byId("tcJson").value || "{}");
+      if (!patch || typeof patch !== "object" || Array.isArray(patch)) throw new Error("bad json");
+    } catch (e) {
+      V.toast("JSON không hợp lệ. Kiểm tra lại nội dung nâng cao.");
+      return;
+    }
+    const simple = {
+      title: { vi: byId("tcTitleVi").value.trim(), en: byId("tcTitleEn").value.trim() },
+      tagline: { vi: byId("tcTagVi").value.trim(), en: byId("tcTagEn").value.trim() },
+      img: byId("tcImg").value.trim(),
+      badge: byId("tcBadge").value.trim(),
+      rating: Number(byId("tcRating").value) || undefined,
+      oldPrice: byId("tcOldPrice").value === "" ? null : Number(byId("tcOldPrice").value)
+    };
+    Object.keys(simple).forEach(function (k) {
+      const v = simple[k];
+      if (v && typeof v === "object") {
+        Object.keys(v).forEach(function (kk) { if (v[kk] !== "") patch[k] = Object.assign({}, patch[k] || {}, { [kk]: v[kk] }); });
+      } else if (v !== undefined && v !== "") {
+        patch[k] = v;
+      }
+    });
+
+    const card = document.querySelector('[data-tour-card="' + tour.id + '"]');
+    const body = card ? currentTourState(card, true) : { price: tour.price, active: tour.active, featured: tour.featured };
+    body.content = patch;
+    try {
+      const res = await api("/tours/" + encodeURIComponent(tour.id), { method: "PUT", body: body });
+      if (card) paintTour(card, res.tour);
+      else state.tours[state.tours.indexOf(tour)] = res.tour;
+      closeModal();
+      V.toast("Đã lưu nội dung \"" + res.tour.title.vi + "\"");
     } catch (err) {
       V.toast(err.message);
     }
@@ -778,6 +1025,8 @@
     state.modalCode = null;
     state.modalMode = null;
     state.accountTarget = null;
+    state.contentTourId = null;
+    state.chatThread = null;
   }
 
   function openBooking(code) {
@@ -857,6 +1106,9 @@
     els.view.addEventListener("click", function (e) {
       if (e.target.closest("[data-retry]")) { load(); return; }
 
+      const chatRow = e.target.closest("[data-chat-thread]");
+      if (chatRow) { openChat(chatRow.dataset.chatThread); return; }
+
       const go = e.target.closest("[data-go]");
       if (go) { setView(go.dataset.go); return; }
 
@@ -884,6 +1136,7 @@
       if (!card) return;
       if (e.target.closest("[data-tour-save]")) saveTourCard(card);
       else if (e.target.closest("[data-tour-base]")) resetTourPrice(card);
+      else if (e.target.closest("[data-tour-content]")) openTourContent(card);
     });
 
     els.view.addEventListener("change", function (e) {
@@ -923,6 +1176,8 @@
 
       if (e.target.closest("[data-acc-create]")) { createAccount(); return; }
       if (e.target.closest("[data-acc-reset]")) { resetAccountPassword(); return; }
+      if (e.target.closest("[data-chat-send]")) { sendChatReply(); return; }
+      if (e.target.closest("[data-content-save]")) { saveTourContent(); return; }
 
       if (!state.modalCode) return;
 
@@ -948,6 +1203,7 @@
     els.today = byId("admToday");
     els.who = byId("admWho");
     els.newBadge = byId("admNewBadge");
+    els.msgBadge = byId("admMsgBadge");
     els.burger = byId("admBurger");
     els.backdrop = byId("admBackdrop");
     els.modal = byId("admModal");

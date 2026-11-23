@@ -13,12 +13,14 @@
   if (!url || !key || !window.supabase || !window.supabase.createClient) return;
 
   const client = window.supabase.createClient(url, key, {
-    auth: { persistSession: true, autoRefreshToken: true }
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
   });
   API.enabled = true;
   API.client = client;
 
   const DATA = window.VV_DATA || { tours: [] };
+  const STATUS_KEYS = ["new", "confirmed", "done", "cancelled"];
+  const channels = {};
 
   function fail(message, status) {
     const err = new Error(message);
@@ -27,7 +29,27 @@
   }
 
   function check(error, fallback) {
-    if (error) throw fail(error.message || fallback, error.code === "PGRST301" ? 401 : 0);
+    if (!error) return;
+    const code = error.code || "";
+    const msg = String(error.message || "");
+    const unauthorized = code === "PGRST301" || code === "42501" || /JWT|permission|not authorized/i.test(msg);
+    throw fail(msg || fallback, unauthorized ? 401 : 0);
+  }
+
+  function deepMerge(target, patch) {
+    if (!patch || typeof patch !== "object") return target;
+    Object.keys(patch).forEach(function (k) {
+      const v = patch[k];
+      if (v === undefined) return;
+      const cur = target[k];
+      if (v && typeof v === "object" && !Array.isArray(v) &&
+          cur && typeof cur === "object" && !Array.isArray(cur)) {
+        deepMerge(cur, v);
+      } else {
+        target[k] = v;
+      }
+    });
+    return target;
   }
 
   async function currentAdmin() {
@@ -35,8 +57,7 @@
     const user = sess && sess.session ? sess.session.user : null;
     if (!user) return null;
     const { data, error } = await client.from("admins").select("*").eq("user_id", user.id).maybeSingle();
-    if (error) return null;
-    if (!data) return null;
+    if (error || !data) return null;
     return {
       id: data.user_id,
       username: data.email,
@@ -50,10 +71,10 @@
     return admin;
   }
 
-  /* Overrides ------------------------------------------------------------ */
+  /* Catalog --------------------------------------------------------------- */
   API.fetchOverrides = async function () {
     const { data, error } = await client.from("tour_overrides").select("*");
-    if (error) throw fail("Không tải được cấu hình tour");
+    check(error, "Không tải được cấu hình tour");
     const map = {};
     (data || []).forEach(function (row) {
       const o = {};
@@ -63,6 +84,21 @@
       if (Object.keys(o).length) map[row.tour_id] = o;
     });
     return map;
+  };
+
+  API.fetchContent = async function () {
+    const { data, error } = await client.from("tour_content").select("tour_id, data");
+    check(error, "Không tải được nội dung tour");
+    const map = {};
+    (data || []).forEach(function (row) {
+      if (row.data && typeof row.data === "object") map[row.tour_id] = row.data;
+    });
+    return map;
+  };
+
+  API.fetchCatalog = async function () {
+    const [overrides, content] = await Promise.all([API.fetchOverrides(), API.fetchContent()]);
+    return { overrides: overrides, content: content };
   };
 
   /* Booking -------------------------------------------------------------- */
@@ -81,7 +117,7 @@
       p_country: c.country || "vn",
       p_requests: c.requests || ""
     });
-    if (error) throw fail(error.message || "Không gửi được đơn. Vui lòng thử lại.");
+    check(error, "Không gửi được đơn. Vui lòng thử lại.");
     return data;
   };
 
@@ -112,33 +148,43 @@
     };
   }
 
+  function messageFromRow(r) {
+    return {
+      id: r.id,
+      thread: r.thread,
+      sender: r.sender,
+      authorName: r.author_name || (r.sender === "admin" ? "Admin" : "Khách"),
+      body: r.body,
+      createdAt: r.created_at,
+      adminRead: !!r.admin_read,
+      customerRead: !!r.customer_read,
+      mine: r.sender === "customer"
+    };
+  }
+
   function basePriceOf(tr) {
     return tr._basePrice != null ? tr._basePrice : tr.price;
   }
 
-  function toursMerged(overrides) {
+  function toursMerged(overrides, content) {
     const ov = overrides || {};
+    const ct = content || {};
     return (DATA.tours || []).map(function (tr) {
-      const o = ov[tr.id] || {};
+      const item = JSON.parse(JSON.stringify(tr));
       const base = basePriceOf(tr);
-      const item = {
-        id: tr.id,
-        dest: tr.dest,
-        duration: tr.duration,
-        type: tr.type,
-        title: tr.title,
-        img: tr.img,
-        basePrice: base,
-        price: typeof o.price === "number" ? o.price : base,
-        active: o.active !== false,
-        featured: o.featured === true
-      };
-      tr.price = item.price;
-      tr.active = item.active;
-      tr.featured = item.featured;
+      const o = ov[tr.id] || {};
+      const c = ct[tr.id] || {};
+      item._basePrice = base;
+      item.price = typeof o.price === "number" ? o.price : base;
+      item.active = o.active !== false;
+      item.featured = o.featured === true;
+      item._content = JSON.parse(JSON.stringify(c));
+      deepMerge(item, c);
       return item;
     });
   }
+
+  API.toursMerged = toursMerged;
 
   async function saveTour(id, body) {
     await requireAdmin();
@@ -164,11 +210,146 @@
         updated_at: new Date().toISOString()
       }));
     }
-    if (error) throw fail("Không lưu được thay đổi");
+    check(error, "Không lưu được thay đổi");
 
-    const merged = toursMerged(await API.fetchOverrides());
-    return merged.find(function (t) { return t.id === id; });
+    const content = body.content || {};
+    if (Object.keys(content).length) {
+      const { error: cErr } = await client.from("tour_content").upsert({
+        tour_id: id,
+        data: content,
+        updated_at: new Date().toISOString()
+      });
+      check(cErr, "Không lưu được nội dung tour");
+    } else {
+      const { error: cErr } = await client.from("tour_content").delete().eq("tour_id", id);
+      check(cErr, "Không xóa được nội dung tour");
+    }
+
+    const catalog = await API.fetchCatalog();
+    return toursMerged(catalog.overrides, catalog.content).find(function (t) { return t.id === id; });
   }
+
+  /* Realtime -------------------------------------------------------------- */
+  function channel(name, specs) {
+    if (channels[name]) return channels[name];
+    const ch = client.channel(name);
+    specs.forEach(function (s) {
+      ch.on("postgres_changes", s.spec, s.handler);
+    });
+    ch.subscribe();
+    channels[name] = ch;
+    return ch;
+  }
+
+  API.subscribeCatalog = function (onChange) {
+    return channel("v4t-catalog", [
+      { spec: { event: "*", schema: "public", table: "tour_overrides" }, handler: onChange },
+      { spec: { event: "*", schema: "public", table: "tour_content" }, handler: onChange }
+    ]);
+  };
+
+  API.subscribeBookings = function (onChange) {
+    return channel("v4t-bookings", [
+      { spec: { event: "*", schema: "public", table: "bookings" }, handler: onChange }
+    ]);
+  };
+
+  /* Chat ------------------------------------------------------------------ */
+  const chat = {};
+  API.chat = chat;
+
+  async function ensureSession() {
+    const { data: sess } = await client.auth.getSession();
+    if (sess && sess.session) return sess.session.user;
+    const { data, error } = await client.auth.signInAnonymously();
+    check(error, "Không mở được phiên trò chuyện. Hãy bật Allow anonymous sign-ins trong Supabase.");
+    return data && data.session ? data.session.user : null;
+  }
+  chat.ensureSession = ensureSession;
+
+  chat.list = async function (thread) {
+    await ensureSession();
+    const { data, error } = await client.from("messages")
+      .select("*").eq("thread", thread).order("created_at", { ascending: true }).limit(300);
+    check(error, "Không tải được tin nhắn");
+    return (data || []).map(messageFromRow);
+  };
+
+  chat.send = async function (thread, body, authorName) {
+    const user = await ensureSession();
+    const text = String(body || "").trim().slice(0, 2000);
+    if (!text) throw fail("Nhập nội dung tin nhắn");
+    const { data, error } = await client.from("messages").insert({
+      thread: thread,
+      sender: "customer",
+      customer_uid: user.id,
+      author_name: String(authorName || "Khách").trim().slice(0, 80) || "Khách",
+      body: text
+    }).select().single();
+    check(error, "Không gửi được tin nhắn");
+    return messageFromRow(data);
+  };
+
+  chat.markRead = async function (thread) {
+    await ensureSession();
+    const { error } = await client.rpc("mark_customer_read", { p_thread: thread });
+    check(error, "Không cập nhật được tin nhắn");
+  };
+
+  chat.adminList = async function () {
+    await requireAdmin();
+    const { data, error } = await client.from("messages")
+      .select("*").order("created_at", { ascending: true }).limit(500);
+    check(error, "Không tải được tin nhắn");
+    return (data || []).map(messageFromRow);
+  };
+
+  chat.adminReply = async function (thread, body, authorName) {
+    const me = await requireAdmin();
+    const text = String(body || "").trim().slice(0, 2000);
+    if (!text) throw fail("Nhập nội dung trả lời");
+    const { data, error } = await client.from("messages").insert({
+      thread: thread,
+      sender: "admin",
+      customer_uid: null,
+      author_name: String(authorName || me.displayName || "Admin").slice(0, 80),
+      body: text
+    }).select().single();
+    check(error, "Không gửi được câu trả lời");
+    return messageFromRow(data);
+  };
+
+  chat.adminMarkRead = async function (thread) {
+    await requireAdmin();
+    const { error } = await client.rpc("mark_thread_read", { p_thread: thread });
+    check(error, "Không cập nhật được tin nhắn");
+  };
+
+  chat.subscribe = function (thread, onMessage) {
+    return channel("v4t-chat-" + thread, [
+      {
+        spec: { event: "INSERT", schema: "public", table: "messages", filter: "thread=eq." + thread },
+        handler: function (payload) { onMessage(messageFromRow(payload.new), "insert"); }
+      },
+      {
+        spec: { event: "UPDATE", schema: "public", table: "messages", filter: "thread=eq." + thread },
+        handler: function (payload) { onMessage(messageFromRow(payload.new), "update"); }
+      }
+    ]);
+  };
+
+  chat.subscribeAdmin = function (onMessage) {
+    return channel("v4t-admin-chat", [
+      {
+        spec: { event: "INSERT", schema: "public", table: "messages" },
+        handler: function (payload) { onMessage(messageFromRow(payload.new), "insert"); }
+      },
+      {
+        spec: { event: "UPDATE", schema: "public", table: "messages" },
+        handler: function (payload) { onMessage(messageFromRow(payload.new), "update"); }
+      }
+    ]);
+  };
 
   /* Admin API shim — cùng path với API Node để js/admin.js không phải đổi */
   API.admin = {
@@ -177,16 +358,12 @@
         email: String(email || "").trim(),
         password: password
       });
-      if (error) {
-        throw fail(/invalid/i.test(error.message || "")
-          ? "Email hoặc mật khẩu không đúng"
-          : (error.message || "Không đăng nhập được"));
-      }
+      check(error, "Không đăng nhập được");
       if (!data.session) throw fail("Không đăng nhập được");
       const admin = await currentAdmin();
       if (!admin) {
         await client.auth.signOut();
-        throw fail("Tài khoản này chưa được cấp quyền quản trị");
+        throw fail("Tài khoản này chưa được cấp quyền quản trị", 401);
       }
       return { admin: admin };
     },
@@ -198,9 +375,7 @@
       const parts = String(path).replace(/^\/+/, "").split("/");
       const head = parts[0];
 
-      if (head === "me") {
-        return { admin: await requireAdmin() };
-      }
+      if (head === "me") return { admin: await requireAdmin() };
 
       if (head === "logout") {
         await client.auth.signOut();
@@ -219,7 +394,7 @@
         const code = decodeURIComponent(parts[1]);
         if (method === "PATCH") {
           const patch = {};
-          if (body.status) patch.status = body.status;
+          if (STATUS_KEYS.indexOf(body.status) > -1) patch.status = body.status;
           if (body.note !== undefined) patch.note = String(body.note).slice(0, 2000);
           const { data, error } = await client.from("bookings").update(patch).eq("code", code).select().single();
           check(error, "Không cập nhật được đơn");
@@ -234,20 +409,21 @@
 
       if (head === "tours" && parts.length === 1 && method === "GET") {
         await requireAdmin();
-        return { tours: toursMerged(await API.fetchOverrides()) };
+        const catalog = await API.fetchCatalog();
+        return { tours: toursMerged(catalog.overrides, catalog.content) };
       }
 
       if (head === "tours" && parts[1]) {
         const id = decodeURIComponent(parts[1]);
-        if (method === "PUT") {
-          return { tour: await saveTour(id, body) };
-        }
+        if (method === "PUT") return { tour: await saveTour(id, body) };
         if (method === "DELETE") {
           await requireAdmin();
           const { error } = await client.from("tour_overrides").delete().eq("tour_id", id);
           check(error, "Không khôi phục được giá gốc");
-          const merged = toursMerged(await API.fetchOverrides());
-          return { tour: merged.find(function (t) { return t.id === id; }) };
+          const { error: cErr } = await client.from("tour_content").delete().eq("tour_id", id);
+          check(cErr, "Không khôi phục được nội dung");
+          const catalog = await API.fetchCatalog();
+          return { tour: toursMerged(catalog.overrides, catalog.content).find(function (t) { return t.id === id; }) };
         }
       }
 
@@ -284,11 +460,21 @@
           if (String(id) !== String(me.id)) {
             throw fail("Đổi mật khẩu người khác: vào Supabase → Authentication → Users để đặt lại.");
           }
-          const { error } = await client.auth.updateUser({ password: body.password || "" });
-          check(error, "Không đổi được mật khẩu");
+          if (body.displayName !== undefined) {
+            const { error: dErr } = await client.from("admins")
+              .update({ display_name: String(body.displayName).slice(0, 80) })
+              .eq("user_id", me.id);
+            check(dErr, "Không đổi được tên hiển thị");
+            me.displayName = String(body.displayName);
+          }
+          if (body.password) {
+            const { error } = await client.auth.updateUser({ password: body.password });
+            check(error, "Không đổi được mật khẩu");
+          }
           return { admin: me };
         }
         if (method === "DELETE") {
+          if (String(id) === String(me.id)) throw fail("Không thể xóa chính mình");
           const { error } = await client.from("admins").delete().eq("user_id", id);
           check(error, "Không xóa được tài khoản");
           return { ok: true };
