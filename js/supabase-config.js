@@ -8,6 +8,6 @@
   Xem hướng dẫn đầy đủ tại supabase/README.md
 */
 window.V4T_SUPABASE = {
-  url: "",
-  anonKey: ""
+  url: "https://qyoffpzcurecgnmgdzqn.supabase.co",
+  anonKey: "sb_publishable_eAY5FAXGy4pbYW3NuKf_Pg_RFoohpa2"
 };
