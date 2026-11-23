@@ -392,7 +392,7 @@
         item("email", "mailto:khanhquang94cva@gmail.com", "mail", "fab.email", false) +
       "</div>" +
       '<button class="fab-toggle" id="fabToggle" type="button" aria-expanded="false" aria-controls="fabList" data-i18n-aria="fab.title">' +
-        icon("chat", 24, "fab-ico fab-ico--chat") +
+        icon("phone", 24, "fab-ico fab-ico--main") +
         icon("x", 24, "fab-ico fab-ico--close") +
       "</button>"
     );
@@ -402,28 +402,30 @@
     const wrap = document.getElementById("vvFab");
     const toggle = document.getElementById("fabToggle");
     if (!wrap || !toggle) return;
+
+    function setFabOpen(next) {
+      wrap.classList.toggle("is-open", next);
+      toggle.setAttribute("aria-expanded", String(next));
+    }
+
     toggle.addEventListener("click", function () {
-      const open = wrap.classList.toggle("is-open");
-      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      const open = !wrap.classList.contains("is-open");
+      setFabOpen(open);
+      // Chỉ một menu floating được mở tại một thời điểm.
+      if (open) window.dispatchEvent(new CustomEvent("vv:chat:close"));
     });
     document.addEventListener("click", function (e) {
-      if (wrap.classList.contains("is-open") && !wrap.contains(e.target)) {
-        wrap.classList.remove("is-open");
-        toggle.setAttribute("aria-expanded", "false");
-      }
+      if (wrap.classList.contains("is-open") && !wrap.contains(e.target)) setFabOpen(false);
     });
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && wrap.classList.contains("is-open")) {
-        wrap.classList.remove("is-open");
-        toggle.setAttribute("aria-expanded", "false");
+        setFabOpen(false);
         toggle.focus();
       }
     });
+    window.addEventListener("vv:contact:close", function () { setFabOpen(false); });
     wrap.querySelectorAll(".fab-item").forEach(function (a) {
-      a.addEventListener("click", function () {
-        wrap.classList.remove("is-open");
-        toggle.setAttribute("aria-expanded", "false");
-      });
+      a.addEventListener("click", function () { setFabOpen(false); });
     });
   }
 
@@ -524,6 +526,10 @@
       }
     }
 
+    window.addEventListener("vv:chat:close", function () {
+      if (open) setOpen(false);
+    });
+
     async function loadMessages() {
       try {
         messages = await api.chat.list(thread);
@@ -553,7 +559,11 @@
       window.setInterval(function () { if (!document.hidden && !busy) loadMessages(); }, 8000);
     }
 
-    fab.addEventListener("click", function () { setOpen(!open); subscribe(); });
+    fab.addEventListener("click", function () {
+      if (!open) window.dispatchEvent(new CustomEvent("vv:contact:close"));
+      setOpen(!open);
+      subscribe();
+    });
     document.getElementById("v4tChatClose").addEventListener("click", function () { setOpen(false); fab.focus(); });
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && open) { setOpen(false); fab.focus(); }

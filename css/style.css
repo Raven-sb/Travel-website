@@ -2371,7 +2371,7 @@ body.filters-open .filters-backdrop { opacity: 1; visibility: visible; }
 .fab-toggle .fab-ico { grid-area: 1 / 1; transition: opacity 0.2s, transform 0.25s var(--ease); }
 .fab-toggle .fab-ico--close { opacity: 0; transform: rotate(-90deg) scale(0.6); }
 .vv-fab.is-open .fab-toggle { background: var(--green); }
-.vv-fab.is-open .fab-ico--chat { opacity: 0; transform: rotate(90deg) scale(0.6); }
+.vv-fab.is-open .fab-ico--main { opacity: 0; transform: rotate(90deg) scale(0.6); }
 .vv-fab.is-open .fab-ico--close { opacity: 1; transform: none; }
 body.filters-open .vv-fab,
 body.nav-open .vv-fab { opacity: 0; visibility: hidden; }
@@ -2396,8 +2396,8 @@ body.nav-open .vv-fab { opacity: 0; visibility: hidden; }
 /* Live chat -------------------------------------------------------------- */
 .v4t-chat {
   position: fixed;
-  right: 18px;
-  bottom: 84px;
+  right: 82px;
+  bottom: 18px;
   z-index: 56;
   display: flex;
   flex-direction: column;
@@ -2437,7 +2437,7 @@ body.nav-open .vv-fab { opacity: 0; visibility: hidden; }
   font-weight: 700;
 }
 .v4t-chat__panel {
-  width: min(350px, calc(100vw - 28px));
+  width: min(350px, calc(100vw - 96px));
   background: #fffdf8;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -2518,8 +2518,11 @@ body.filters-open .v4t-chat,
 body.nav-open .v4t-chat { opacity: 0; visibility: hidden; }
 
 @media (max-width: 1024px) {
-  .v4t-chat { right: 14px; bottom: 82px; }
-  body[data-page="tour"] .v4t-chat { bottom: 152px; }
+  .v4t-chat { right: 78px; bottom: 18px; }
+  body[data-page="tour"] .v4t-chat {
+    right: 78px;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+  }
 }
 
 @media print {
