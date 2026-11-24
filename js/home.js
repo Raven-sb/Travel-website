@@ -4,7 +4,7 @@
 
   const V = window.VV;
   const DATA = V.data;
-  const TYPES = ["nature", "culture", "beach", "adventure", "luxury"];
+  const TYPES = ["nature", "culture", "beach", "adventure", "luxury", "transfer", "food"];
   const DEST_TILES = ["halong", "sapa", "hoian", "hagiang", "phuquoc", "mekong"];
   let activeTab = "all";
 

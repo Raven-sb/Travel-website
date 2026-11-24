@@ -152,6 +152,8 @@ window.I18N = {
     "type.beach": "Biển đảo",
     "type.adventure": "Phiêu lưu",
     "type.luxury": "Nghỉ dưỡng",
+    "type.transfer": "Đưa đón",
+    "type.food": "Ẩm thực",
 
     "badge.bestseller": "Bán chạy",
     "badge.new": "Mới",
@@ -470,6 +472,8 @@ window.I18N = {
     "type.beach": "Beach",
     "type.adventure": "Adventure",
     "type.luxury": "Luxury",
+    "type.transfer": "Transfer",
+    "type.food": "Dining",
 
     "badge.bestseller": "Bestseller",
     "badge.new": "New",

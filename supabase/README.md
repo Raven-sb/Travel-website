@@ -21,6 +21,32 @@ File này tạo: `tours`, `tour_overrides`, `tour_content`, `bookings`, `admins`
 > đó là do bạn đang dán **một đoạn rời** vào query cũ. Bấm **New query → Discard
 > unsaved edits → dán TOÀN BỘ file → Run**.
 
+### Tour miền Trung mới (6-day + tour lẻ)
+
+Bản này thêm 11 tour gốc: `central-vietnam-experience-6d` (Trải nghiệm miền trung
+Việt Nam 6 ngày) và các tour lẻ cho khách quốc tế ở **Huế / Đà Nẵng / Hội An**
+(tour 1 ngày, đón tiễn sân bay, transfer liên tỉnh, tour ăn tối). Trang lọc tour
+có thêm 2 phong cách: **Đưa đón (Transfer)** và **Ẩm thực (Dining)**.
+
+Nếu bạn **đã chạy schema từ trước**, chỉ cần chạy thêm đoạn này để các tour mới
+xuất hiện trong admin (để sửa giá / xóa / khôi phục):
+
+```sql
+insert into public.tours (id, price, title_vi) values
+  ('central-vietnam-experience-6d', 6900000, 'Trải nghiệm miền trung Việt Nam 6 ngày'),
+  ('hue-imperial-day-1d', 790000, 'Huế 1 ngày: Đại Nội – Thiên Mụ – Lăng Tự Đức'),
+  ('hue-phubai-transfer', 350000, 'Đón/tiễn sân bay Phú Bài – Huế'),
+  ('hue-royal-dinner', 690000, 'Tối Huế: Cơm cung đình & Ca Huế sông Hương'),
+  ('danang-golden-bridge-day-1d', 1350000, 'Bà Nà Hills & Cầu Vàng 1 ngày'),
+  ('danang-airport-transfer', 320000, 'Đón/tiễn sân bay Đà Nẵng'),
+  ('central-private-transfer', 1150000, 'Transfer Huế – Hội An qua Hải Vân & Ngũ Hành Sơn'),
+  ('danang-seafood-dinner', 590000, 'Tối Đà Nẵng: Hải sản Mỹ Khê & Cầu Rồng'),
+  ('hoian-ancient-cooking-day-1d', 990000, 'Hội An 1 ngày: Phố cổ & Nấu ăn rừng dừa Bảy Mẫu'),
+  ('hoian-airport-transfer', 480000, 'Đón/tiễn sân bay Đà Nẵng – Hội An'),
+  ('hoian-lantern-dinner', 550000, 'Tối Hội An: Ẩm thực phố cổ & Thả đèn sông Hoài')
+on conflict (id) do update set price = excluded.price, title_vi = excluded.title_vi;
+```
+
 ### Giới hạn tần suất (chống spam) đã có trong DB
 
 - Đặt tour: tối đa **5 đơn / email / giờ** và **3 đơn / số điện thoại / giờ**.

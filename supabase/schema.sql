@@ -29,7 +29,19 @@ insert into public.tours (id, price, title_vi) values
   ('ninhbinh-day-1d', 890000, 'Ninh Bình: Tràng An – Hang Múa 1 ngày'),
   ('hagiang-loop-3n2d', 2990000, 'Hà Giang Loop: Mã Pí Lèng huyền thoại 3N2Đ'),
   ('mekong-delta-2n1d', 1990000, 'Đồng bằng sông Cửu Long 2N1Đ'),
-  ('dalat-highlands-3n2d', 2790000, 'Đà Lạt: Săn mây & thông reo 3N2Đ')
+  ('dalat-highlands-3n2d', 2790000, 'Đà Lạt: Săn mây & thông reo 3N2Đ'),
+  -- Miền Trung: tour trọn gói + các sản phẩm lẻ cho khách quốc tế
+  ('central-vietnam-experience-6d', 6900000, 'Trải nghiệm miền trung Việt Nam 6 ngày'),
+  ('hue-imperial-day-1d', 790000, 'Huế 1 ngày: Đại Nội – Thiên Mụ – Lăng Tự Đức'),
+  ('hue-phubai-transfer', 350000, 'Đón/tiễn sân bay Phú Bài – Huế'),
+  ('hue-royal-dinner', 690000, 'Tối Huế: Cơm cung đình & Ca Huế sông Hương'),
+  ('danang-golden-bridge-day-1d', 1350000, 'Bà Nà Hills & Cầu Vàng 1 ngày'),
+  ('danang-airport-transfer', 320000, 'Đón/tiễn sân bay Đà Nẵng'),
+  ('central-private-transfer', 1150000, 'Transfer Huế – Hội An qua Hải Vân & Ngũ Hành Sơn'),
+  ('danang-seafood-dinner', 590000, 'Tối Đà Nẵng: Hải sản Mỹ Khê & Cầu Rồng'),
+  ('hoian-ancient-cooking-day-1d', 990000, 'Hội An 1 ngày: Phố cổ & Nấu ăn rừng dừa Bảy Mẫu'),
+  ('hoian-airport-transfer', 480000, 'Đón/tiễn sân bay Đà Nẵng – Hội An'),
+  ('hoian-lantern-dinner', 550000, 'Tối Hội An: Ẩm thực phố cổ & Thả đèn sông Hoài')
 on conflict (id) do update set price = excluded.price, title_vi = excluded.title_vi;
 
 create table if not exists public.tour_overrides (

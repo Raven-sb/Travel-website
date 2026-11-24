@@ -17,7 +17,9 @@
     culture: "Văn hóa",
     beach: "Biển đảo",
     adventure: "Phiêu lưu",
-    luxury: "Nghỉ dưỡng"
+    luxury: "Nghỉ dưỡng",
+    transfer: "Đưa đón",
+    food: "Ẩm thực"
   };
   const PAYMENTS = { later: "Thanh toán sau", card: "Thẻ tín dụng", transfer: "Chuyển khoản" };
   const COUNTRIES = { vn: "Việt Nam", us: "Hoa Kỳ", uk: "Anh", au: "Úc", fr: "Pháp" };

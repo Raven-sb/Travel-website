@@ -4,7 +4,7 @@
 
   const V = window.VV;
   const DATA = V.data;
-  const TYPE_KEYS = ["nature", "culture", "beach", "adventure", "luxury"];
+  const TYPE_KEYS = ["nature", "culture", "beach", "adventure", "luxury", "transfer", "food"];
   const DURATIONS = ["1", "2-3", "4"];
   const BUDGETS = ["under1", "1-3", "3-5", "over5"];
   const SORTS = ["recommended", "priceAsc", "priceDesc", "rating", "duration"];

@@ -408,6 +408,284 @@ window.VV_DATA = {
           desc: { vi: "Thăm vườn hoa thành phố, thưởng thức cà phê, chiều về lại TP.HCM.", en: "Visit the city flower gardens, local coffee tasting, afternoon return to Saigon." }
         }
       ]
+    },
+    {
+      id: "central-vietnam-experience-6d",
+      dest: "danang", region: "central", type: ["culture", "food"], duration: 6,
+      title: { vi: "Trải nghiệm miền trung Việt Nam 6 ngày", en: "Central Vietnam Experience — 6 Days" },
+      tagline: { vi: "Huế cố đô – Hải Vân – Ngũ Hành Sơn – Hội An đèn lồng, đón tiễn sân bay trọn gói", en: "Imperial Hue, Hai Van Pass, Marble Mountains and lantern-lit Hoi An, with private airport transfers" },
+      price: 6900000, oldPrice: 7500000, rating: 4.9, reviews: 96, badge: "new",
+      img: "assets/img/hue.jpg", gallery: ["assets/img/hue.jpg", "assets/img/danang.jpg", "assets/img/hoian.jpg"],
+      departure: { vi: "Đón/tiễn sân bay Đà Nẵng hoặc Phú Bài (Huế)", en: "Pick-up & drop-off at Da Nang or Phu Bai (Hue) airport" },
+      group: { vi: "Tour riêng 2–12 khách", en: "Private tour, 2–12 guests" },
+      highlights: [
+        { vi: "Xe riêng đón và tiễn sân bay theo giờ bay", en: "Private airport pick-up and drop-off timed to your flight" },
+        { vi: "Đại Nội, chùa Thiên Mụ và lăng Tự Đức", en: "Imperial City, Thien Mu Pagoda and Tu Duc Tomb" },
+        { vi: "Vượt Hải Vân Quan, ghé Ngũ Hành Sơn", en: "Cross Hai Van Pass and visit the Marble Mountains" },
+        { vi: "Phố cổ Hội An & lớp nấu ăn rừng dừa Bảy Mẫu", en: "Hoi An old town and a cooking class in Bay Mau coconut forest" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Đón sân bay – Về Huế", en: "Airport Pick-up – Hue" },
+          desc: { vi: "Xe riêng đón tại sân bay Đà Nẵng hoặc Phú Bài, đưa về khách sạn ở Huế nhận phòng. Tối tự do dạo phố đêm, thử bún bò và chè Huế.", en: "Private pick-up at Da Nang or Phu Bai airport and transfer to your Hue hotel. Evening at leisure to explore the night market and try local bun bo and sweets." }
+        },
+        {
+          day: 2,
+          title: { vi: "Huế: Đại Nội – Thiên Mụ – Tự Đức", en: "Hue: Imperial City – Thien Mu – Tu Duc" },
+          desc: { vi: "Tham quan Đại Nội, Ngọ Môn và điện Thái Hòa; ghé chùa Thiên Mụ bên sông Hương; chiều viếng lăng Tự Đức. Tối thưởng thức cơm cung đình hoặc ca Huế.", en: "Explore the Imperial City, Meridian Gate and Thai Hoa Palace; visit Thien Mu Pagoda by the Perfume River; afternoon at Tu Duc's tomb. Evening with royal cuisine or Hue folk music." }
+        },
+        {
+          day: 3,
+          title: { vi: "Huế – Hải Vân Quan – Ngũ Hành Sơn – Hội An", en: "Hue – Hai Van Gate – Marble Mountains – Hoi An" },
+          desc: { vi: "Xe riêng vượt đèo Hải Vân, dừng chụp ảnh cổng trời Hải Vân Quan, ghé Ngũ Hành Sơn khám phá động Huyền Không. Chiều về Hội An nhận phòng, tối thả đèn hoa đăng.", en: "Private transfer over Hai Van Pass with a stop at Hai Van Gate, then explore the caves of Marble Mountains. Arrive in Hoi An in the afternoon; float lanterns on the Hoai River at night." }
+        },
+        {
+          day: 4,
+          title: { vi: "Phố cổ Hội An – Rừng dừa Bảy Mẫu", en: "Hoi An Old Town – Bay Mau Coconut Forest" },
+          desc: { vi: "Sáng đi bộ phố cổ, chùa Cầu và nhà cổ Phùng Hưng. Chiều đi thuyền thúng rừng dừa Bảy Mẫu và học nấu ăn cùng đầu bếp bản địa, thưởng thức chính món mình làm.", en: "Morning walk through the old town, Japanese Covered Bridge and Phung Hung old house. Afternoon basket-boat ride in Bay Mau coconut forest and a hands-on cooking class with a local chef." }
+        },
+        {
+          day: 5,
+          title: { vi: "Ngày tự do tại Hội An", en: "Free Day in Hoi An" },
+          desc: { vi: "Tự do tắm biển An Bàng, đạp xe về làng mộc Kim Bồng, học làm đèn lồng hoặc thư giãn bên sông Hoài.", en: "Free day to swim at An Bang beach, cycle to Kim Bong carpentry village, try lantern making or simply relax by the Hoai River." }
+        },
+        {
+          day: 6,
+          title: { vi: "Hội An – Tiễn sân bay", en: "Hoi An – Airport Drop-off" },
+          desc: { vi: "Trả phòng, xe riêng đưa ra sân bay Đà Nẵng hoặc Phú Bài theo giờ bay. Kết thúc hành trình.", en: "Check out and private transfer to Da Nang or Phu Bai airport according to your flight time. End of trip." }
+        }
+      ]
+    },
+    {
+      id: "hue-imperial-day-1d",
+      dest: "hue", region: "central", type: ["culture"], duration: 1,
+      title: { vi: "Huế 1 ngày: Đại Nội – Thiên Mụ – Lăng Tự Đức", en: "Hue in a Day: Imperial City – Thien Mu – Tu Duc" },
+      tagline: { vi: "Ba di sản triều Nguyễn trong một ngày trọn vẹn", en: "Three Nguyen-dynasty treasures in one complete day" },
+      price: 790000, oldPrice: null, rating: 4.9, reviews: 214, badge: "bestseller",
+      img: "assets/img/hue.jpg", gallery: ["assets/img/hue.jpg", "assets/img/hoian.jpg", "assets/img/danang.jpg"],
+      departure: { vi: "Huế (đón tại khách sạn)", en: "Hue (hotel pick-up)" },
+      group: { vi: "Tối đa 12 khách", en: "Max 12 guests" },
+      highlights: [
+        { vi: "Đại Nội & Ngọ Môn", en: "Imperial City and Meridian Gate" },
+        { vi: "Chùa Thiên Mụ bên sông Hương", en: "Thien Mu Pagoda on the Perfume River" },
+        { vi: "Lăng Tự Đức", en: "Tu Duc Royal Tomb" },
+        { vi: "Tùy chọn cơm cung đình", en: "Optional royal court lunch" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Huế: Đại Nội – Thiên Mụ – Tự Đức", en: "Hue: Imperial City – Thien Mu – Tu Duc" },
+          desc: { vi: "08:00 đón tại khách sạn, tham quan Đại Nội, chùa Thiên Mụ, ăn trưa cơm âm phủ hoặc cơm cung đình, chiều viếng lăng Tự Đức, 17:00 kết thúc tại Huế.", en: "08:00 hotel pick-up, visit the Imperial City and Thien Mu Pagoda, royal-style lunch, afternoon at Tu Duc's tomb, finishing in Hue around 17:00." }
+        }
+      ]
+    },
+    {
+      id: "hue-phubai-transfer",
+      dest: "hue", region: "central", type: ["transfer"], duration: 1,
+      title: { vi: "Đón/tiễn sân bay Phú Bài – Huế", en: "Phu Bai Airport Transfer – Hue" },
+      tagline: { vi: "Xe riêng đúng giờ, tài xế đón có biển tên", en: "On-time private car with a name-sign pick-up" },
+      price: 350000, oldPrice: null, rating: 4.8, reviews: 168, badge: null,
+      img: "assets/img/hue.jpg", gallery: ["assets/img/hue.jpg", "assets/img/hoian.jpg"],
+      departure: { vi: "Sân bay Phú Bài / khách sạn Huế", en: "Phu Bai Airport / Hue hotel" },
+      group: { vi: "Tối đa 4 khách", en: "Max 4 guests" },
+      highlights: [
+        { vi: "Đón chuyến bay thực tế, chờ 60 phút", en: "Flight tracking with 60 minutes of waiting time" },
+        { vi: "Xe riêng đời mới, hành lý thoải mái", en: "Modern private car with ample luggage space" },
+        { vi: "Tài xế hỗ trợ tiếng Anh cơ bản", en: "Driver with basic English support" },
+        { vi: "Đặt nhanh, xác nhận ngay", en: "Quick booking, instant confirmation" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Sân bay Phú Bài – Huế", en: "Phu Bai Airport – Hue" },
+          desc: { vi: "Tài xế đón tại sân bay Phú Bài hoặc khách sạn, đưa trực tiếp về Huế (khoảng 30 phút). Có thể đặt chiều ngược lại hoặc ghé Đại Nội trên đường.", en: "Pick-up at Phu Bai airport or your hotel, direct transfer to Hue (about 30 minutes). Also available in reverse, with an optional stop at the Imperial City." }
+        }
+      ]
+    },
+    {
+      id: "hue-royal-dinner",
+      dest: "hue", region: "central", type: ["food", "culture"], duration: 1,
+      title: { vi: "Tối Huế: Cơm cung đình & Ca Huế sông Hương", en: "Hue Evening: Royal Dinner & Perfume River Music" },
+      tagline: { vi: "Hương vị triều Nguyễn và âm văn cổ trên dòng sông Hương", en: "Nguyen-dynasty flavours and ancient music on the Perfume River" },
+      price: 690000, oldPrice: null, rating: 4.8, reviews: 132, badge: "new",
+      img: "assets/img/hue.jpg", gallery: ["assets/img/hue.jpg", "assets/img/hoian-rain.jpg"],
+      departure: { vi: "Huế", en: "Hue" },
+      group: { vi: "Tối đa 10 khách", en: "Max 10 guests" },
+      highlights: [
+        { vi: "Thực đơn cơm cung đình Huế", en: "Hue royal court dinner menu" },
+        { vi: "Nghe ca Huế trên sông Hương", en: "Hue folk music on the Perfume River" },
+        { vi: "Ngắm chùa Thiên Mụ lúc hoàng hôn", en: "Thien Mu Pagoda at sunset" },
+        { vi: "Đón trả tại khách sạn trung tâm Huế", en: "Pick-up and drop-off at central Hue hotels" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Cơm cung đình – Ca Huế", en: "Royal Dinner – Hue Folk Music" },
+          desc: { vi: "17:30 đón tại khách sạn, ăn tối cơm cung đình, 19:30 lên thuyền nghe ca Huế trên sông Hương, ngắm Thiên Mụ về đêm, 21:00 tiễn về khách sạn.", en: "17:30 hotel pick-up, royal court dinner, 19:30 board a boat for Hue folk music on the Perfume River and views of Thien Mu by night, back at your hotel by 21:00." }
+        }
+      ]
+    },
+    {
+      id: "danang-golden-bridge-day-1d",
+      dest: "danang", region: "central", type: ["culture", "nature"], duration: 1,
+      title: { vi: "Bà Nà Hills & Cầu Vàng 1 ngày", en: "Ba Na Hills & Golden Bridge Day Tour" },
+      tagline: { vi: "Cầu Vàng, làng Pháp và cáp treo đỉnh Chúa", en: "Golden Bridge, a French village and a cable car to the summit" },
+      price: 1350000, oldPrice: 1550000, rating: 4.9, reviews: 1420, badge: "bestseller",
+      img: "assets/img/danang.jpg", gallery: ["assets/img/danang.jpg", "assets/img/hue.jpg", "assets/img/hero.jpg"],
+      departure: { vi: "Đà Nẵng", en: "Da Nang" },
+      group: { vi: "Tối đa 20 khách", en: "Max 20 guests" },
+      highlights: [
+        { vi: "Cáp treo Bà Nà kỷ lục Guinness", en: "Guinness-recorded Ba Na cable car" },
+        { vi: "Check-in Cầu Vàng", en: "Photos at the iconic Golden Bridge" },
+        { vi: "Làng Pháp & vườn hoa Le Jardin", en: "French Village and Le Jardin gardens" },
+        { vi: "Buffet trưa tại chân núi", en: "Lunch buffet at the mountain base" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Đà Nẵng – Bà Nà Hills – Đà Nẵng", en: "Da Nang – Ba Na Hills – Da Nang" },
+          desc: { vi: "07:30 đón tại khách sạn, cáp treo lên Bà Nà, chụp Cầu Vàng, dạo Làng Pháp và vườn hoa, ăn trưa buffet, 16:30 về lại Đà Nẵng.", en: "07:30 hotel pick-up, cable car to Ba Na Hills, Golden Bridge photos, French Village and gardens, lunch buffet, back in Da Nang by 16:30." }
+        }
+      ]
+    },
+    {
+      id: "danang-airport-transfer",
+      dest: "danang", region: "central", type: ["transfer"], duration: 1,
+      title: { vi: "Đón/tiễn sân bay Đà Nẵng", en: "Da Nang Airport Transfer" },
+      tagline: { vi: "Từ sân bay đến Mỹ Khê chỉ 15 phút, không phải chờ", en: "From the airport to My Khe in 15 minutes, no waiting" },
+      price: 320000, oldPrice: null, rating: 4.9, reviews: 356, badge: null,
+      img: "assets/img/danang.jpg", gallery: ["assets/img/danang.jpg", "assets/img/hoian.jpg"],
+      departure: { vi: "Sân bay Đà Nẵng / khách sạn", en: "Da Nang Airport / hotel" },
+      group: { vi: "Tối đa 4 khách", en: "Max 4 guests" },
+      highlights: [
+        { vi: "Tài xế chờ sẵn có biển tên", en: "Driver waiting with a name sign" },
+        { vi: "Theo dõi chuyến bay, chờ 60 phút", en: "Flight tracking, 60 minutes of free waiting" },
+        { vi: "Xe riêng, không ghép đoàn", en: "Private car, no sharing" },
+        { vi: "Đặt cho cả chiều đi lẫn chiều về", en: "Book one way or round trip" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Sân bay Đà Nẵng – Mỹ Khê", en: "Da Nang Airport – My Khe" },
+          desc: { vi: "Đón tại cổng A1/A2 sân bay Đà Nẵng, đưa về khách sạn ven biển Mỹ Khê hoặc trung tâm thành phố. Nhận xe tiễn sân bay theo giờ bay.", en: "Meet at Da Nang airport Gate A1/A2 and transfer to a My Khe beach hotel or the city centre. Departure transfers are timed to your flight." }
+        }
+      ]
+    },
+    {
+      id: "central-private-transfer",
+      dest: "danang", region: "central", type: ["transfer", "culture"], duration: 1,
+      title: { vi: "Transfer Huế – Hội An qua Hải Vân & Ngũ Hành Sơn", en: "Hue – Hoi An Private Transfer via Hai Van & Marble Mountains" },
+      tagline: { vi: "Đi lại là một phần của chuyến đi: đèo Hải Vân, động Huyền Không, biển Đà Nẵng", en: "The journey is part of the trip: Hai Van Pass, Marble Mountains and Da Nang beaches" },
+      price: 1150000, oldPrice: null, rating: 4.9, reviews: 203, badge: "new",
+      img: "assets/img/danang.jpg", gallery: ["assets/img/danang.jpg", "assets/img/hue.jpg", "assets/img/hoian.jpg"],
+      departure: { vi: "Huế / Đà Nẵng / Hội An", en: "Hue / Da Nang / Hoi An" },
+      group: { vi: "Tối đa 4 khách (xe riêng)", en: "Max 4 guests (private car)" },
+      highlights: [
+        { vi: "Đèo Hải Vân – một trong những cung đường đẹp nhất thế giới", en: "Hai Van Pass, one of the world's most scenic roads" },
+        { vi: "Dừng chụp cổng trời Hải Vân Quan", en: "Photo stop at Hai Van Gate" },
+        { vi: "Ngũ Hành Sơn & động Huyền Không", en: "Marble Mountains and Huyen Khong Cave" },
+        { vi: "Tùy chọn ghé bán đảo Sơn Trà hoặc biển Mỹ Khê", en: "Optional stop at Son Tra Peninsula or My Khe Beach" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Huế – Hải Vân – Ngũ Hành Sơn – Hội An", en: "Hue – Hai Van – Marble Mountains – Hoi An" },
+          desc: { vi: "08:00 đón tại Huế, vượt đèo Hải Vân với các điểm dừng chụp ảnh, ghé Ngũ Hành Sơn, ăn trưa tại Đà Nẵng, chiều đến Hội An. Nhận xe ngược chiều nếu cần.", en: "08:00 pick-up in Hue, cross Hai Van Pass with photo stops, visit Marble Mountains, lunch in Da Nang and arrive in Hoi An in the afternoon. Reverse direction available." }
+        }
+      ]
+    },
+    {
+      id: "danang-seafood-dinner",
+      dest: "danang", region: "central", type: ["food"], duration: 1,
+      title: { vi: "Tối Đà Nẵng: Hải sản Mỹ Khê & Cầu Rồng", en: "Da Nang Evening: My Khe Seafood & Dragon Bridge" },
+      tagline: { vi: "Hải sản tươi rói, biển đêm và cầu Rồng phun lửa", en: "Fresh seafood, a night beach and the fire-breathing Dragon Bridge" },
+      price: 590000, oldPrice: null, rating: 4.8, reviews: 287, badge: "new",
+      img: "assets/img/danang.jpg", gallery: ["assets/img/danang.jpg", "assets/img/hero.jpg"],
+      departure: { vi: "Đà Nẵng", en: "Da Nang" },
+      group: { vi: "Tối đa 10 khách", en: "Max 10 guests" },
+      highlights: [
+        { vi: "Nhà hàng hải sản ven biển Mỹ Khê", en: "Seafood restaurant by My Khe Beach" },
+        { vi: "Tùy chọn món theo khẩu vị, có hướng dẫn viên", en: "Dishes chosen to your taste with a guide" },
+        { vi: "Dạo biển đêm Mỹ Khê", en: "Evening walk on My Khe beach" },
+        { vi: "Xem Cầu Rồng phun lửa cuối tuần", en: "Watch the Dragon Bridge fire show on weekends" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Mỹ Khê – Cầu Rồng", en: "My Khe – Dragon Bridge" },
+          desc: { vi: "18:00 đón tại khách sạn, ăn tối hải sản ven biển Mỹ Khê, dạo biển đêm, 20:00 đi xem Cầu Rồng phun lửa (tối Thứ 7–CN), tiễn về khách sạn.", en: "18:00 hotel pick-up, seafood dinner by My Khe Beach, an evening beach walk, then the Dragon Bridge fire show on Saturday and Sunday nights, and drop-off at your hotel." }
+        }
+      ]
+    },
+    {
+      id: "hoian-ancient-cooking-day-1d",
+      dest: "hoian", region: "central", type: ["culture", "food"], duration: 1,
+      title: { vi: "Hội An 1 ngày: Phố cổ & Nấu ăn rừng dừa Bảy Mẫu", en: "Hoi An in a Day: Old Town & Bay Mau Cooking Class" },
+      tagline: { vi: "Đi bộ phố cổ, đi thuyền thúng và tự tay nấu món Hội An", en: "Old town walks, basket boats and cooking Hoi An dishes yourself" },
+      price: 990000, oldPrice: 1150000, rating: 4.9, reviews: 864, badge: "bestseller",
+      img: "assets/img/hoian.jpg", gallery: ["assets/img/hoian.jpg", "assets/img/hoian-rain.jpg", "assets/img/danang.jpg"],
+      departure: { vi: "Hội An", en: "Hoi An" },
+      group: { vi: "Tối đa 12 khách", en: "Max 12 guests" },
+      highlights: [
+        { vi: "Phố cổ, chùa Cầu, nhà cổ Phùng Hưng", en: "Old town, Japanese Covered Bridge and Phung Hung House" },
+        { vi: "Thuyền thúng rừng dừa Bảy Mẫu", en: "Basket-boat ride in Bay Mau coconut forest" },
+        { vi: "Lớp nấu ăn cùng đầu bếp bản địa", en: "Hands-on class with a local chef" },
+        { vi: "Thưởng thức Cao Lầu & bánh xèo tự làm", en: "Eat the Cao Lau and banh xeo you make" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Phố cổ – Rừng dừa – Lớp nấu ăn", en: "Old Town – Coconut Forest – Cooking Class" },
+          desc: { vi: "08:30 đón tại khách sạn, đi bộ phố cổ và chùa Cầu; 10:30 đi thuyền thúng rừng dừa Bảy Mẫu; 11:30 học nấu Cao Lầu, bánh xèo và gỏi cuốn, ăn trưa chính món mình làm; chiều tự do, thả đèn sông Hoài.", en: "08:30 hotel pick-up and old town walk with the Japanese Covered Bridge; 10:30 basket boats in Bay Mau coconut forest; 11:30 cooking class for Cao Lau, banh xeo and fresh rolls, followed by lunch; free afternoon and lantern floating on the Hoai River." }
+        }
+      ]
+    },
+    {
+      id: "hoian-airport-transfer",
+      dest: "hoian", region: "central", type: ["transfer"], duration: 1,
+      title: { vi: "Đón/tiễn sân bay Đà Nẵng – Hội An", en: "Da Nang Airport – Hoi An Transfer" },
+      tagline: { vi: "Xe riêng đưa bạn thẳng đến phố cổ, dừng nghỉ ngắm biển nếu muốn", en: "A private ride straight to the old town, with an optional beach stop" },
+      price: 480000, oldPrice: null, rating: 4.9, reviews: 612, badge: null,
+      img: "assets/img/hoian.jpg", gallery: ["assets/img/hoian.jpg", "assets/img/danang.jpg"],
+      departure: { vi: "Sân bay Đà Nẵng / Hội An", en: "Da Nang Airport / Hoi An" },
+      group: { vi: "Tối đa 4 khách", en: "Max 4 guests" },
+      highlights: [
+        { vi: "Hành trình ~45 phút qua biển Mỹ Khê", en: "Around 45 minutes via My Khe Beach" },
+        { vi: "Đón chuyến bay, chờ 60 phút miễn phí", en: "Flight tracking with 60 minutes of free waiting" },
+        { vi: "Tùy chọn ghé Ngũ Hành Sơn hoặc chợ Hàn", en: "Optional stop at Marble Mountains or Han Market" },
+        { vi: "Tiễn sân bay theo giờ bay", en: "Airport drop-off timed to your flight" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Sân bay Đà Nẵng – Hội An", en: "Da Nang Airport – Hoi An" },
+          desc: { vi: "Tài xế đón tại sân bay, đi theo cung đường ven biển về Hội An (~45 phút), có thể dừng chụp ảnh biển Mỹ Khê hoặc ghé Ngũ Hành Sơn. Chiều về đón tại khách sạn tiễn ra sân bay.", en: "Meet at the airport and take the coastal route to Hoi An (about 45 minutes), with an optional stop at My Khe Beach or Marble Mountains. Return transfer available from your hotel." }
+        }
+      ]
+    },
+    {
+      id: "hoian-lantern-dinner",
+      dest: "hoian", region: "central", type: ["food", "culture"], duration: 1,
+      title: { vi: "Tối Hội An: Ẩm thực phố cổ & Thả đèn sông Hoài", en: "Hoi An Evening: Old Town Flavours & Lantern Floating" },
+      tagline: { vi: "Cao Lầu, đèn lồng và phố cổ lên đèn", en: "Cao Lau, lanterns and an old town glowing at night" },
+      price: 550000, oldPrice: null, rating: 4.9, reviews: 508, badge: "new",
+      img: "assets/img/hoian-rain.jpg", gallery: ["assets/img/hoian-rain.jpg", "assets/img/hoian.jpg"],
+      departure: { vi: "Hội An", en: "Hoi An" },
+      group: { vi: "Tối đa 10 khách", en: "Max 10 guests" },
+      highlights: [
+        { vi: "Ăn tối Cao Lầu, bánh bao bánh vạc tại phố cổ", en: "Dinner on Cao Lau and local specialities in the old town" },
+        { vi: "Dạo phố đèn lồng, chùa Cầu về đêm", en: "Walk the lantern-lit streets and Japanese Covered Bridge" },
+        { vi: "Thả đèn hoa đăng trên sông Hoài", en: "Float a lantern on the Hoai River" },
+        { vi: "Tùy chọn xem Hội An Memories Show", en: "Optional Hoi An Memories Show tickets" }
+      ],
+      itinerary: [
+        {
+          day: 1,
+          title: { vi: "Ăn tối phố cổ – Thả đèn sông Hoài", en: "Old Town Dinner – Lantern Floating" },
+          desc: { vi: "18:00 đón tại khách sạn, ăn tối các món đặc sản Hội An, dạo phố cổ lên đèn, chụp ảnh chùa Cầu, 20:00 thả đèn hoa đăng trên sông Hoài, 21:00 tiễn về khách sạn.", en: "18:00 hotel pick-up, dinner on Hoi An specialities, a walk through the lantern-lit old town and photos at the Japanese Covered Bridge, 20:00 lantern floating on the Hoai River, back at your hotel by 21:00." }
+        }
+      ]
     }
   ],
 
