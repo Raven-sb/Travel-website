@@ -157,6 +157,34 @@ drop policy if exists "tours write admin" on public.tours;
 create policy "tours write admin" on public.tours for all
   using (public.is_admin()) with check (public.is_admin());
 
+-- Xóa/khôi phục tour qua RPC: chạy với quyền chủ bảng nên không bị RLS chặn
+-- ngầm (UPDATE trả về 0 dòng mà không báo lỗi). Hàm tự kiểm tra admin và tự
+-- báo lỗi nếu không có dòng nào được cập nhật → client không bao giờ báo "đã
+-- xóa" khi DB chưa đổi.
+create or replace function public.set_tour_deleted(p_id text, p_deleted boolean)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rows integer;
+begin
+  if not public.is_admin() then
+    raise exception 'Không có quyền quản trị tour';
+  end if;
+  update public.tours set deleted = p_deleted where id = p_id;
+  get diagnostics v_rows = row_count;
+  if v_rows = 0 then
+    raise exception 'Không tìm thấy tour: %', p_id;
+  end if;
+  return true;
+end;
+$$;
+
+revoke all on function public.set_tour_deleted(text, boolean) from public, anon;
+grant execute on function public.set_tour_deleted(text, boolean) to authenticated;
+
 drop policy if exists "overrides read" on public.tour_overrides;
 create policy "overrides read" on public.tour_overrides for select using (true);
 

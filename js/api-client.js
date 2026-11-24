@@ -380,15 +380,17 @@
     const catalog = await API.fetchCatalog();
     const row = catalog.tours.find(function (t) { return t.id === id; });
     if (!row) throw fail("Không tìm thấy tour");
-    const { error } = await client.from("tours").update({ deleted: true }).eq("id", id);
+    const { data, error } = await client.rpc("set_tour_deleted", { p_id: id, p_deleted: true });
     check(error, "Không xóa được tour");
+    if (!data) throw fail("Không xóa được tour (không có dòng nào được cập nhật)");
     return true;
   };
 
   API.restoreTour = async function (id) {
     await requireAdmin();
-    const { error } = await client.from("tours").update({ deleted: false }).eq("id", id);
+    const { data, error } = await client.rpc("set_tour_deleted", { p_id: id, p_deleted: false });
     check(error, "Không khôi phục được tour");
+    if (!data) throw fail("Không khôi phục được tour (không có dòng nào được cập nhật)");
     return true;
   };
 

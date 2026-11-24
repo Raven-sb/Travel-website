@@ -47,6 +47,31 @@ insert into public.tours (id, price, title_vi) values
 on conflict (id) do update set price = excluded.price, title_vi = excluded.title_vi;
 ```
 
+**b2) Bắt buộc cho nút Xóa/Khôi phục tour** (bản cũ dùng UPDATE trực tiếp nên có
+thể bị RLS chặn ngầm — xóa xong reload lại hiện ra). Chạy đoạn này **một lần**:
+
+```sql
+create or replace function public.set_tour_deleted(p_id text, p_deleted boolean)
+returns boolean language plpgsql security definer set search_path = public
+as $$
+declare v_rows integer;
+begin
+  if not public.is_admin() then
+    raise exception 'Không có quyền quản trị tour';
+  end if;
+  update public.tours set deleted = p_deleted where id = p_id;
+  get diagnostics v_rows = row_count;
+  if v_rows = 0 then raise exception 'Không tìm thấy tour: %', p_id; end if;
+  return true;
+end;
+$$;
+revoke all on function public.set_tour_deleted(text, boolean) from public, anon;
+grant execute on function public.set_tour_deleted(text, boolean) to authenticated;
+```
+
+Sau khi chạy, bấm Xóa tour ở admin sẽ báo lỗi rõ ràng nếu chưa có quyền, thay vì
+“đã xóa” nhưng reload lại hiện ra.
+
 ### Giới hạn tần suất (chống spam) đã có trong DB
 
 - Đặt tour: tối đa **5 đơn / email / giờ** và **3 đơn / số điện thoại / giờ**.

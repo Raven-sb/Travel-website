@@ -1160,10 +1160,12 @@
     )) return;
     try {
       await api("/tours/" + encodeURIComponent(id), { method: "DELETE" });
-      state.tours.forEach(function (t) { if (t.id === id) t._deleted = true; });
+      // Đọc lại từ DB để chắc chắn cờ deleted đã lưu (không tin state locally).
+      state.tours = (await api("/tours")).tours;
       closeModal();
       renderView();
-      V.toast("Đã xóa tour — vào tab 'Đã xóa' để khôi phục");
+      const gone = state.tours.some(function (t) { return t.id === id && t._deleted; });
+      V.toast(gone ? "Đã xóa tour — vào tab 'Đã xóa' để khôi phục" : "Xóa chưa lưu được vào Supabase. Kiểm tra lại SQL/RPC set_tour_deleted.");
     } catch (err) {
       V.toast(err.message);
     }
@@ -1173,7 +1175,7 @@
     if (!REMOTE || !id) return;
     try {
       await api("/tours/" + encodeURIComponent(id) + "/restore", { method: "POST" });
-      state.tours.forEach(function (t) { if (t.id === id) t._deleted = false; });
+      state.tours = (await api("/tours")).tours;
       renderView();
       V.toast("Đã khôi phục tour");
     } catch (err) {
