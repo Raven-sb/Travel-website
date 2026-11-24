@@ -195,15 +195,38 @@
     if (!REMOTE || realtimeStarted) return;
     realtimeStarted = true;
     let timer = null;
+    let pendingRefresh = false;
+    const runRefresh = function () {
+      // Tab đang ẩn (admin khác chuyển sang tab khác / thu nhỏ trình duyệt):
+      // nhớ cần tải lại, rồi tải ngay khi tab được mở ra.
+      if (els.shell.hidden || document.hidden) {
+        pendingRefresh = true;
+        return;
+      }
+      pendingRefresh = false;
+      if (state.view === "tours") refreshTours({ silent: true });
+      else load();
+    };
     const refresh = function () {
       window.clearTimeout(timer);
-      timer = window.setTimeout(function () {
-        if (els.shell.hidden || document.hidden) return;
-        load();
-      }, 250);
+      timer = window.setTimeout(runRefresh, 250);
     };
+    const refreshWhenVisible = function () {
+      if (!document.hidden && pendingRefresh) runRefresh();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
+
     REMOTE.subscribeCatalog(refresh);
     REMOTE.subscribeBookings(refresh);
+
+    // Realtime có thể bị bỏ sót nếu mất kết nối lúc admin khác ẩn tour.
+    // Định kỳ đọc lại danh sách tour để mọi admin luôn thấy cờ deleted mới nhất.
+    window.setInterval(function () {
+      if (!els.shell.hidden && !document.hidden && state.view === "tours") {
+        refreshTours({ silent: true });
+      }
+    }, 15000);
     REMOTE.chat.subscribeAdmin(function (m, kind) {
       if (kind === "insert" && !state.messages.some(function (x) { return x.id === m.id; })) {
         state.messages.push(m);
@@ -370,6 +393,31 @@
     } catch (err) {
       if (els.shell.hidden) return;
       els.view.innerHTML = errorHTML(err.message);
+    }
+  }
+
+  // Đọc lại danh sách tour từ Supabase mà không làm mất nội dung đang soạn.
+  // Dùng cho Realtime, khi chuyển tab "Ẩn tour" và khi quay lại tab trình duyệt.
+  let toursRefreshing = false;
+  let toursRefreshQueued = false;
+  async function refreshTours(options) {
+    const silent = !!(options && options.silent);
+    if (!REMOTE || els.shell.hidden) return;
+    if (toursRefreshing) { toursRefreshQueued = true; return; }
+    toursRefreshing = true;
+    try {
+      state.tours = (await api("/tours")).tours;
+      if ((state.view === "tours" || state.view === "dashboard") && els.modal.hidden) {
+        renderView();
+      }
+    } catch (err) {
+      if (!silent && !els.shell.hidden) V.toast(err.message);
+    } finally {
+      toursRefreshing = false;
+      if (toursRefreshQueued) {
+        toursRefreshQueued = false;
+        window.setTimeout(function () { refreshTours(options); }, 0);
+      }
     }
   }
 
@@ -1567,7 +1615,13 @@
       if (e.target.closest("[data-tour-add]")) { openTourEditor(null); return; }
 
       const tf = e.target.closest("[data-tour-filter]");
-      if (tf) { state.tourFilter = tf.dataset.tourFilter; renderView(); return; }
+      if (tf) {
+        state.tourFilter = tf.dataset.tourFilter;
+        renderView();
+        // Admin khác có thể vừa ẩn/hiện tour: luôn đọc lại Supabase khi mở tab.
+        refreshTours();
+        return;
+      }
 
       const restoreTourBtn = e.target.closest("[data-tour-restore]");
       if (restoreTourBtn) { restoreTour(restoreTourBtn.dataset.tourRestore); return; }
