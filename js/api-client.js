@@ -22,8 +22,12 @@
   API.client = client;
 
   const DATA = window.VV_DATA || { tours: [] };
+  // app.js (cũng được nạp ở admin.html) sẽ splice tour ẩn khỏi DATA.tours.
+  // Giữ bản snapshot gốc ngay lúc load để danh sách ADMIN vẫn thấy mọi tour
+  // đã ẩn; danh sách khách vẫn do app.js lọc như cũ.
+  const BASE_TOURS = JSON.parse(JSON.stringify(DATA.tours || []));
   const BASE_IDS = {};
-  (DATA.tours || []).forEach(function (t) { BASE_IDS[t.id] = true; });
+  BASE_TOURS.forEach(function (t) { BASE_IDS[t.id] = true; });
   const STATUS_KEYS = ["new", "confirmed", "done", "cancelled"];
   const channels = {};
 
@@ -230,7 +234,7 @@
     const rows = baseRows || [];
     const deleted = {};
     rows.forEach(function (r) { if (r.deleted) deleted[r.id] = true; });
-    const list = (DATA.tours || [])
+    const list = BASE_TOURS
       .filter(function (tr) { return includeDeleted || !deleted[tr.id]; })
       .map(function (tr) {
         const row = rows.find(function (r) { return r.id === tr.id; });
