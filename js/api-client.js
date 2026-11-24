@@ -115,14 +115,14 @@
     const [overrides, content, base] = await Promise.all([
       API.fetchOverrides(),
       API.fetchContent(),
-      client.from("tours").select("id, price, title_vi")
+      client.from("tours").select("id, price, title_vi, deleted")
     ]);
     check(base.error, "Không tải được danh sách tour");
     return {
       overrides: overrides,
       content: content,
       tours: (base.data || []).map(function (r) {
-        return { id: r.id, price: r.price, titleVi: r.title_vi || "" };
+        return { id: r.id, price: r.price, titleVi: r.title_vi || "", deleted: !!r.deleted };
       })
     };
   };
@@ -224,30 +224,37 @@
     };
   }
 
-  function toursMerged(overrides, content, baseRows) {
+  function toursMerged(overrides, content, baseRows, includeDeleted) {
     const ov = overrides || {};
     const ct = content || {};
     const rows = baseRows || [];
-    const list = (DATA.tours || []).map(function (tr) {
-      const row = rows.find(function (r) { return r.id === tr.id; });
-      const item = JSON.parse(JSON.stringify(tr));
-      const base = row ? row.price : basePriceOf(tr);
-      const o = ov[tr.id] || {};
-      const c = ct[tr.id] || {};
-      item._basePrice = base;
-      item.price = typeof o.price === "number" ? o.price : base;
-      item.active = o.active !== false;
-      item.featured = o.featured === true;
-      item._content = JSON.parse(JSON.stringify(c));
-      deepMerge(item, c);
-      return item;
-    });
+    const deleted = {};
+    rows.forEach(function (r) { if (r.deleted) deleted[r.id] = true; });
+    const list = (DATA.tours || [])
+      .filter(function (tr) { return includeDeleted || !deleted[tr.id]; })
+      .map(function (tr) {
+        const row = rows.find(function (r) { return r.id === tr.id; });
+        const item = JSON.parse(JSON.stringify(tr));
+        const base = row ? row.price : basePriceOf(tr);
+        const o = ov[tr.id] || {};
+        const c = ct[tr.id] || {};
+        item._basePrice = base;
+        item.price = typeof o.price === "number" ? o.price : base;
+        item.active = o.active !== false;
+        item.featured = o.featured === true;
+        item._deleted = !!deleted[tr.id];
+        item._content = JSON.parse(JSON.stringify(c));
+        deepMerge(item, c);
+        return item;
+      });
     rows.forEach(function (row) {
       if (BASE_IDS[row.id] || list.some(function (t) { return t.id === row.id; })) return;
+      if (!includeDeleted && deleted[row.id]) return;
       const o = ov[row.id] || {};
       const c = ct[row.id] || {};
       const item = remoteTourSkeleton(row, c);
       item._custom = true;
+      item._deleted = !!deleted[row.id];
       item._basePrice = row.price;
       item.price = typeof o.price === "number" ? o.price : row.price;
       item.active = o.active !== false;
@@ -367,14 +374,21 @@
     return mergedTour(id);
   }
 
+  // Xóa tour = đánh dấu deleted (kể cả tour gốc), vẫn khôi phục được.
   API.deleteTour = async function (id) {
     await requireAdmin();
     const catalog = await API.fetchCatalog();
     const row = catalog.tours.find(function (t) { return t.id === id; });
     if (!row) throw fail("Không tìm thấy tour");
-    if (BASE_IDS[id]) throw fail("Không thể xóa tour gốc. Bạn có thể ẩn tour bằng công tắc Đang bán.");
-    const { error } = await client.from("tours").delete().eq("id", id);
+    const { error } = await client.from("tours").update({ deleted: true }).eq("id", id);
     check(error, "Không xóa được tour");
+    return true;
+  };
+
+  API.restoreTour = async function (id) {
+    await requireAdmin();
+    const { error } = await client.from("tours").update({ deleted: false }).eq("id", id);
+    check(error, "Không khôi phục được tour");
     return true;
   };
 
@@ -612,7 +626,7 @@
       if (head === "tours" && parts.length === 1 && method === "GET") {
         await requireAdmin();
         const catalog = await API.fetchCatalog();
-        return { tours: toursMerged(catalog.overrides, catalog.content, catalog.tours) };
+        return { tours: toursMerged(catalog.overrides, catalog.content, catalog.tours, true) };
       }
 
       if (head === "tours" && parts.length === 1 && method === "POST") {
@@ -621,18 +635,14 @@
 
       if (head === "tours" && parts[1]) {
         const id = decodeURIComponent(parts[1]);
+        if (parts[2] === "restore" && method === "POST") {
+          await API.restoreTour(id);
+          return { tour: await mergedTour(id) };
+        }
         if (method === "PUT") return { tour: await saveTour(id, body) };
         if (method === "DELETE") {
-          if (!BASE_IDS[id]) {
-            await API.deleteTour(id);
-            return { ok: true };
-          }
-          await requireAdmin();
-          const { error } = await client.from("tour_overrides").delete().eq("tour_id", id);
-          check(error, "Không khôi phục được giá gốc");
-          const { error: cErr } = await client.from("tour_content").delete().eq("tour_id", id);
-          check(cErr, "Không khôi phục được nội dung");
-          return { tour: await mergedTour(id) };
+          await API.deleteTour(id);
+          return { ok: true };
         }
       }
 

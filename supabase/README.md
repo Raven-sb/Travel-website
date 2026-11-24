@@ -83,7 +83,7 @@ Mở `index.html` (hoặc chạy `start.cmd` → http://localhost:8088) rồi ki
 | Admin đổi giá / ẩn tour | Khách đang mở trang thấy thay đổi ngay |
 | Admin → Tour → Chỉnh sửa | Sửa tiêu đề, ảnh, điểm nhấn, lịch trình, thư viện ảnh → khách thấy ngay |
 | Admin → Tour → Thêm tour | Tạo tour mới trên Supabase, hiển thị ngay cho khách (không sửa `data.js`) |
-| Admin → Tour → Xóa tour | Nút "Xóa tour" trên thẻ tour tạo mới (và trong Chỉnh sửa) → tour mất hẳn, khách cũng không còn thấy |
+| Admin → Tour → Xóa tour | Nút "Xóa tour" trên mọi thẻ (kể cả tour gốc) → khách mất tour ngay; tour vào tab "Đã xóa", bấm "Khôi phục" để đưa lại |
 | Đăng ký email ở footer | Email xuất hiện trong `admin.html → Đăng ký nhận tin` |
 | Chọn “Chuyển khoản” | Hiện thông tin tài khoản từ `V4T_BANK` + mã đặt chỗ làm nội dung |
 

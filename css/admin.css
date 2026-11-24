@@ -584,8 +584,13 @@ body.adm-side-open .adm-burger span:nth-child(3) { top: 20px; transform: rotate(
 }
 .adm-switch input:checked { background: var(--green); }
 .adm-switch input:checked::after { transform: translateX(15px); }
-.adm-tour__foot { display: flex; gap: 8px; margin-top: 2px; }
-.adm-tour__foot .btn { flex: 1; padding: 9px 12px; font-size: 0.78rem; }
+.adm-tour__foot { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+.adm-tour__foot .btn { gap: 6px; padding: 9px 12px; font-size: 0.78rem; }
+.adm-tour__foot .btn:hover .ic { transform: none; }
+.adm-tour__wide { width: 100%; }
+.adm-tour__foot-sub { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.adm-tour__foot-sub .btn { padding: 8px 4px; font-size: 0.74rem; }
+.adm-tour.is-deleted .adm-tour__media img { filter: grayscale(0.7); opacity: 0.7; }
 .adm-tour__dirty { outline: 2px solid rgba(217, 164, 65, 0.6); outline-offset: 1px; border-radius: 10px; }
 
 /* Modal ------------------------------------------------------------------ */

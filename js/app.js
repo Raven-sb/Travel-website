@@ -149,7 +149,14 @@
 
   function applyRemoteTours(rows, overrides) {
     (rows || []).forEach(function (row) {
-      if (!row || !row.id || !row.price) return;
+      if (!row || !row.id) return;
+      if (row.deleted) {
+        // Admin đã xóa tour (kể cả tour gốc) → bỏ khỏi danh sách khách.
+        const ix = DATA.tours.findIndex(function (t) { return t.id === row.id; });
+        if (ix > -1) DATA.tours.splice(ix, 1);
+        return;
+      }
+      if (!row.price) return;
       let tr = DATA.tours.find(function (t) { return t.id === row.id; });
       if (!tr) {
         tr = remoteTourSkeleton(row);

@@ -14,6 +14,10 @@ create table if not exists public.tours (
   title_vi text not null default ''
 );
 
+-- Xóa tour (kể cả tour gốc) = đánh dấu deleted; vẫn có thể khôi phục.
+alter table public.tours add column if not exists deleted boolean not null default false;
+create index if not exists tours_deleted_idx on public.tours (deleted);
+
 insert into public.tours (id, price, title_vi) values
   ('halong-cruise-2n1d', 2890000, 'Du thuyền Hạ Long 2N1Đ: Ngủ giữa di sản'),
   ('sapa-valley-3n2d', 3590000, 'Sa Pa & thung lũng Mường Hoa 3N2Đ'),
