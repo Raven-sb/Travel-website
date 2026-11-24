@@ -39,6 +39,7 @@
     edit: '<path d="M4 20h4L18.5 9.5 14.5 5.5 4 16v4Z"/><path d="m13 6.9 4.1 4.1"/>',
     restore: '<path d="M4 11a8 8 0 1 1 2.6 6"/><path d="M4 5v6h6"/>',
     eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/>',
+    eyeOff: '<path d="M3 3l18 18"/><path d="M10.6 6.1A9.7 9.7 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-2.4 3.1"/><path d="M6.3 7.6A17 17 0 0 0 2.5 12S6 18 12 18c1.2 0 2.3-.2 3.3-.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     chat: '<path d="M12 4.2a7.8 7.8 0 1 0 0 15.6c.9 0 1.8-.1 2.6-.4L19 21l-.4-4.1a7.8 7.8 0 0 0-6.6-12.7Z"/><path d="M8.6 12h.01M12 12h.01M15.4 12h.01"/>',
@@ -759,38 +760,41 @@
   /* Tours ----------------------------------------------------------------- */
   function toursHTML() {
     const active = state.tours.filter(function (tr) { return !tr._deleted; });
-    const deleted = state.tours.filter(function (tr) { return !!tr._deleted; });
-    const showDeleted = state.tourFilter === "deleted";
-    const list = showDeleted ? deleted : active;
+    const hidden = state.tours.filter(function (tr) { return !!tr._deleted; });
+    const showHidden = state.tourFilter === "hidden";
+    const list = showHidden ? hidden : active;
     const tabs =
       '<div class="adm-tabs">' +
-        '<button class="adm-tab' + (showDeleted ? "" : " is-active") + '" type="button" data-tour-filter="active">Đang dùng <em>' + active.length + "</em></button>" +
-        '<button class="adm-tab' + (showDeleted ? " is-active" : "") + '" type="button" data-tour-filter="deleted">Đã xóa <em>' + deleted.length + "</em></button>" +
+        '<button class="adm-tab' + (showHidden ? "" : " is-active") + '" type="button" data-tour-filter="active">Đang dùng <em>' + active.length + "</em></button>" +
+        '<button class="adm-tab' + (showHidden ? " is-active" : "") + '" type="button" data-tour-filter="hidden">Ẩn tour <em>' + hidden.length + "</em></button>" +
       "</div>";
     const cards = list.map(function (tr) {
       const dest = V.destOf(tr.dest);
       const types = (tr.type || []).map(function (ty) { return TYPE_VI[ty] || ty; }).join(" · ");
       const dur = tr.duration <= 1 ? "1 ngày" : tr.duration + "N" + (tr.duration - 1) + "Đ";
-      const stateLabel = showDeleted ? "Đã xóa" : (tr.active ? "Đang bán" : "Tạm ẩn");
-      const foot = showDeleted
+      const stateLabel = showHidden ? "Đã ẩn" : (tr.active ? "Đang bán" : "Tạm ẩn");
+      const foot = showHidden
         ? '<div class="adm-tour__foot">' +
             '<button class="btn btn--primary btn--sm adm-tour__wide" type="button" data-tour-restore="' + V.esc(tr.id) + '">' +
-              icon("restore", 14) + " Khôi phục tour" +
+              icon("restore", 14) + " Hiện lại tour" +
             "</button>" +
+            (REMOTE && isSuperAdmin()
+              ? '<button class="btn btn--danger btn--sm" type="button" data-tour-purge="' + V.esc(tr.id) + '" title="Xóa vĩnh viễn — không thể khôi phục">' + icon("trash", 14) + " Xóa vĩnh viễn</button>"
+              : "") +
           "</div>"
         : '<div class="adm-tour__foot">' +
             '<button class="btn btn--primary btn--sm adm-tour__wide" type="button" data-tour-save>' + icon("check", 14) + " Lưu thay đổi</button>" +
             '<div class="adm-tour__foot-sub">' +
               (tr._custom ? "" : '<button class="btn btn--ghost btn--sm" type="button" data-tour-base title="Khôi phục giá gốc">Giá gốc</button>') +
               (REMOTE ? '<button class="btn btn--ghost btn--sm" type="button" data-tour-content>' + icon("edit", 14) + " Sửa</button>" : "") +
-              (REMOTE ? '<button class="btn btn--danger btn--sm" type="button" data-tour-delete-card="' + V.esc(tr.id) + '" title="Xóa tour">' + icon("trash", 14) + " Xóa</button>" : "") +
+              (REMOTE ? '<button class="btn btn--ghost btn--sm" type="button" data-tour-delete-card="' + V.esc(tr.id) + '" title="Ẩn tour khỏi website">' + icon("eyeOff", 14) + " Ẩn</button>" : "") +
             "</div>" +
           "</div>";
       return (
-        '<article class="adm-tour' + (showDeleted ? " is-deleted" : "") + '" data-tour-card="' + V.esc(tr.id) + '">' +
+        '<article class="adm-tour' + (showHidden ? " is-deleted" : "") + '" data-tour-card="' + V.esc(tr.id) + '">' +
           '<div class="adm-tour__media">' +
             '<img src="' + tr.img + '" alt="' + V.esc(tr.title.vi) + '" loading="lazy" />' +
-            '<span class="adm-tour__state' + (showDeleted || !tr.active ? " is-off" : "") + '" data-tour-state>' + stateLabel + "</span>" +
+            '<span class="adm-tour__state' + (showHidden || !tr.active ? " is-off" : "") + '" data-tour-state>' + stateLabel + "</span>" +
           "</div>" +
           '<div class="adm-tour__body">' +
             '<a class="adm-tour__title" href="tour.html?id=' + V.esc(tr.id) + '" target="_blank">' + V.esc(tr.title.vi) + "</a>" +
@@ -810,21 +814,23 @@
       );
     }).join("");
     if (!list.length) {
-      const msg = showDeleted
-        ? "Chưa có tour nào bị xóa. Các tour bạn xóa sẽ xuất hiện ở đây để khôi phục."
+      const msg = showHidden
+        ? "Chưa có tour nào bị ẩn. Các tour bạn ẩn sẽ xuất hiện ở đây để hiện lại hoặc xóa vĩnh viễn."
         : "Chưa có tour nào.";
       return '<section class="adm-panel">' + tabs + emptyHTML("Trống", msg) + "</section>";
     }
     return (
       '<div class="adm-tools" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">' +
         "<p style=\"font-size:.8rem;color:var(--muted);margin:0\">" +
-          (showDeleted
-            ? "Tour đã xóa vẫn giữ dữ liệu. Bấm Khôi phục để đưa lại lên website."
+          (showHidden
+            ? (isSuperAdmin()
+              ? "Tour bị ẩn vẫn giữ dữ liệu. Bấm Hiện lại để đưa lên website, hoặc Xóa vĩnh viễn (chỉ quản trị tối cao)."
+              : "Tour bị ẩn vẫn giữ dữ liệu. Bấm Hiện lại để đưa lại lên website.")
             : (REMOTE
               ? "Lưu trên Supabase — khách thấy thay đổi ngay (Realtime). Chỉnh sửa tiêu đề, ảnh, lịch trình…"
               : "Thay đổi lưu trên máy chủ và áp dụng cho mọi khách truy cập ngay khi họ tải lại trang.")) +
         "</p>" +
-        (REMOTE && !showDeleted ? '<button class="btn btn--primary btn--sm" type="button" data-tour-add>' + icon("plus", 14) + " Thêm tour</button>" : "") +
+        (REMOTE && !showHidden ? '<button class="btn btn--primary btn--sm" type="button" data-tour-add>' + icon("plus", 14) + " Thêm tour</button>" : "") +
       "</div>" +
       tabs +
       '<div class="adm-tour-grid">' + cards + "</div>"
@@ -1031,7 +1037,7 @@
         "</div>" +
       "</div>" +
       '<div class="adm-modal__foot">' +
-        (isNew ? "" : '<button class="btn btn--danger btn--sm" type="button" data-tour-delete>' + icon("trash", 14) + " Xóa tour</button>") +
+        (isNew ? "" : '<button class="btn btn--ghost btn--sm" type="button" data-tour-delete>' + icon("eyeOff", 14) + " Ẩn tour</button>") +
         '<button class="btn btn--ghost btn--sm" type="button" data-close>Hủy</button>' +
         '<button class="btn btn--primary btn--sm" type="button" data-content-save>Lưu tour</button>' +
       "</div>"
@@ -1154,9 +1160,9 @@
   async function deleteTour(id) {
     if (!REMOTE || !id) return;
     if (!window.confirm(
-      "Xóa tour này khỏi website?\n\n" +
+      "Ẩn tour này khỏi website?\n\n" +
       "Khách sẽ không còn thấy tour nữa. Dữ liệu vẫn được giữ lại — " +
-      "bạn có thể khôi phục trong tab 'Đã xóa'."
+      "bạn có thể hiện lại trong tab 'Ẩn tour'."
     )) return;
     try {
       await api("/tours/" + encodeURIComponent(id), { method: "DELETE" });
@@ -1164,8 +1170,8 @@
       state.tours = (await api("/tours")).tours;
       closeModal();
       renderView();
-      const gone = state.tours.some(function (t) { return t.id === id && t._deleted; });
-      V.toast(gone ? "Đã xóa tour — vào tab 'Đã xóa' để khôi phục" : "Xóa chưa lưu được vào Supabase. Kiểm tra lại SQL/RPC set_tour_deleted.");
+      const hidden = state.tours.some(function (t) { return t.id === id && t._deleted; });
+      V.toast(hidden ? "Đã ẩn tour — vào tab 'Ẩn tour' để hiện lại" : "Ẩn chưa lưu được vào Supabase. Kiểm tra lại RPC set_tour_deleted.");
     } catch (err) {
       V.toast(err.message);
     }
@@ -1177,7 +1183,25 @@
       await api("/tours/" + encodeURIComponent(id) + "/restore", { method: "POST" });
       state.tours = (await api("/tours")).tours;
       renderView();
-      V.toast("Đã khôi phục tour");
+      V.toast("Đã hiện lại tour");
+    } catch (err) {
+      V.toast(err.message);
+    }
+  }
+
+  async function purgeTour(id) {
+    if (!REMOTE || !id || !isSuperAdmin()) return;
+    if (!window.confirm(
+      "XÓA VĨNH VIỄN tour này?\n\n" +
+      "Tour đang bị ẩn sẽ mất hẳn khỏi Supabase cùng giá, nội dung và thư viện ảnh. " +
+      "Không thể khôi phục. Đơn đã đặt vẫn giữ mã tour.\n\n" +
+      "Chỉ quản trị tối cao " + REMOTE.SUPER_ADMIN_EMAIL + " được thực hiện."
+    )) return;
+    try {
+      await api("/tours/" + encodeURIComponent(id) + "/purge", { method: "DELETE" });
+      state.tours = (await api("/tours")).tours;
+      renderView();
+      V.toast("Đã xóa vĩnh viễn tour");
     } catch (err) {
       V.toast(err.message);
     }
@@ -1547,6 +1571,9 @@
 
       const restoreTourBtn = e.target.closest("[data-tour-restore]");
       if (restoreTourBtn) { restoreTour(restoreTourBtn.dataset.tourRestore); return; }
+
+      const purgeTourBtn = e.target.closest("[data-tour-purge]");
+      if (purgeTourBtn) { purgeTour(purgeTourBtn.dataset.tourPurge); return; }
 
       const delTourCard = e.target.closest("[data-tour-delete-card]");
       if (delTourCard) { deleteTour(delTourCard.dataset.tourDeleteCard); return; }

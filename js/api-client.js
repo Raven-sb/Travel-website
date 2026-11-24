@@ -394,6 +394,15 @@
     return true;
   };
 
+  // Xóa vĩnh viễn tour đã ẩn — DB chỉ cho phép admin tối cao (is_super_admin).
+  API.purgeTour = async function (id) {
+    await requireAdmin();
+    const { data, error } = await client.rpc("purge_tour", { p_id: id });
+    check(error, "Không xóa vĩnh viễn được tour");
+    if (!data) throw fail("Không xóa vĩnh viễn được tour");
+    return true;
+  };
+
   /* Realtime -------------------------------------------------------------- */
   function channel(name, specs) {
     if (channels[name]) return channels[name];
@@ -640,6 +649,10 @@
         if (parts[2] === "restore" && method === "POST") {
           await API.restoreTour(id);
           return { tour: await mergedTour(id) };
+        }
+        if (parts[2] === "purge" && method === "DELETE") {
+          await API.purgeTour(id);
+          return { ok: true };
         }
         if (method === "PUT") return { tour: await saveTour(id, body) };
         if (method === "DELETE") {

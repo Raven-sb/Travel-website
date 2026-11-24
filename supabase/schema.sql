@@ -185,6 +185,36 @@ $$;
 revoke all on function public.set_tour_deleted(text, boolean) from public, anon;
 grant execute on function public.set_tour_deleted(text, boolean) to authenticated;
 
+-- Xóa vĩnh viễn tour ĐÃ ẨN. Chỉ quản trị tối cao (email đăng nhập khớp JWT).
+-- ON DELETE CASCADE ở tour_overrides/tour_content dọn sạch dữ liệu liên quan;
+-- bookings chỉ lưu mã tour dạng text nên vẫn giữ lại.
+create or replace function public.purge_tour(p_id text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rows integer;
+begin
+  if not public.is_super_admin() then
+    raise exception 'Chỉ quản trị tối cao được xóa vĩnh viễn tour';
+  end if;
+  if not exists (select 1 from public.tours where id = p_id and deleted) then
+    raise exception 'Tour không tồn tại hoặc chưa được ẩn: %', p_id;
+  end if;
+  delete from public.tours where id = p_id;
+  get diagnostics v_rows = row_count;
+  if v_rows = 0 then
+    raise exception 'Không xóa được tour: %', p_id;
+  end if;
+  return true;
+end;
+$$;
+
+revoke all on function public.purge_tour(text) from public, anon;
+grant execute on function public.purge_tour(text) to authenticated;
+
 drop policy if exists "overrides read" on public.tour_overrides;
 create policy "overrides read" on public.tour_overrides for select using (true);
 

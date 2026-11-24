@@ -69,8 +69,35 @@ revoke all on function public.set_tour_deleted(text, boolean) from public, anon;
 grant execute on function public.set_tour_deleted(text, boolean) to authenticated;
 ```
 
-Sau khi chạy, bấm Xóa tour ở admin sẽ báo lỗi rõ ràng nếu chưa có quyền, thay vì
-“đã xóa” nhưng reload lại hiện ra.
+Sau khi chạy, bấm **Ẩn** ở admin sẽ báo lỗi rõ ràng nếu chưa có quyền, thay vì
+“đã ẩn” nhưng reload lại hiện ra.
+
+**b3) Xóa vĩnh viễn tour đã ẩn (chỉ admin tối cao)** — chạy thêm đoạn này:
+
+```sql
+create or replace function public.purge_tour(p_id text)
+returns boolean language plpgsql security definer set search_path = public
+as $$
+declare v_rows integer;
+begin
+  if not public.is_super_admin() then
+    raise exception 'Chỉ quản trị tối cao được xóa vĩnh viễn tour';
+  end if;
+  if not exists (select 1 from public.tours where id = p_id and deleted) then
+    raise exception 'Tour không tồn tại hoặc chưa được ẩn: %', p_id;
+  end if;
+  delete from public.tours where id = p_id;
+  get diagnostics v_rows = row_count;
+  if v_rows = 0 then raise exception 'Không xóa được tour: %', p_id; end if;
+  return true;
+end;
+$$;
+revoke all on function public.purge_tour(text) from public, anon;
+grant execute on function public.purge_tour(text) to authenticated;
+```
+
+Hàm `purge_tour` kiểm tra email đăng nhập trong JWT, nên dù admin thường có sửa
+code frontend cũng không xóa được. Chỉ tour **đã ẩn** mới bị xóa vĩnh viễn.
 
 ### Giới hạn tần suất (chống spam) đã có trong DB
 
@@ -134,7 +161,8 @@ Mở `index.html` (hoặc chạy `start.cmd` → http://localhost:8088) rồi ki
 | Admin đổi giá / ẩn tour | Khách đang mở trang thấy thay đổi ngay |
 | Admin → Tour → Chỉnh sửa | Sửa tiêu đề, ảnh, điểm nhấn, lịch trình, thư viện ảnh → khách thấy ngay |
 | Admin → Tour → Thêm tour | Tạo tour mới trên Supabase, hiển thị ngay cho khách (không sửa `data.js`) |
-| Admin → Tour → Xóa tour | Nút "Xóa tour" trên mọi thẻ (kể cả tour gốc) → khách mất tour ngay; tour vào tab "Đã xóa", bấm "Khôi phục" để đưa lại |
+| Admin → Tour → Ẩn tour | Nút "Ẩn" trên mọi thẻ (kể cả tour gốc) → khách mất tour ngay; tour vào tab "Ẩn tour", bấm "Hiện lại" để đưa lại |
+| Admin → Tab "Ẩn tour" → Xóa vĩnh viễn | Chỉ hiện với `khanhquang94cva@gmail.com`; xóa hẳn tour đã ẩn, không khôi phục được. Admin khác chỉ thấy nút "Hiện lại" |
 | Đăng ký email ở footer | Email xuất hiện trong `admin.html → Đăng ký nhận tin` |
 | Chọn “Chuyển khoản” | Hiện thông tin tài khoản từ `V4T_BANK` + mã đặt chỗ làm nội dung |
 
