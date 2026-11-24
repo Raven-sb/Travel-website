@@ -764,7 +764,8 @@
           "</div>" +
           '<div class="adm-tour__body">' +
             '<a class="adm-tour__title" href="tour.html?id=' + tr.id + '" target="_blank">' + V.esc(tr.title.vi) + "</a>" +
-            '<div class="adm-tour__meta">' + V.esc(dest ? dest.name.vi : "") + " · " + dur + " · " + V.esc(types) + "</div>" +
+            '<div class="adm-tour__meta">' + V.esc(dest ? dest.name.vi : "") + " · " + dur + " · " + V.esc(types) +
+              (tr._custom ? ' · <span class="adm-badge adm-badge--new">Tour tạo mới</span>' : "") + "</div>" +
             '<div class="adm-tour__price-row">' +
               '<label for="tp-' + tr.id + '">Giá / khách</label>' +
               '<input id="tp-' + tr.id + '" type="number" inputmode="numeric" min="100000" step="50000" value="' + tr.price + '" data-tour-price />' +
@@ -777,6 +778,7 @@
               '<button class="btn btn--primary btn--sm" type="button" data-tour-save>Lưu thay đổi</button>' +
               (tr._custom ? "" : '<button class="btn btn--ghost btn--sm" type="button" data-tour-base>Giá gốc</button>') +
               (REMOTE ? '<button class="btn btn--ghost btn--sm" type="button" data-tour-content>Chỉnh sửa</button>' : "") +
+              (REMOTE && tr._custom ? '<button class="btn btn--danger btn--sm" type="button" data-tour-delete-card="' + V.esc(tr.id) + '" title="Xóa vĩnh viễn tour đã tạo">Xóa tour</button>' : "") +
             "</div>" +
           "</div>" +
         "</article>"
@@ -787,7 +789,7 @@
       '<div class="adm-tools" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">' +
         '<p style="font-size:.8rem;color:var(--muted);margin:0">' +
           (REMOTE
-            ? "Lưu trên Supabase — khách thấy thay đổi ngay (Realtime). Nút Chỉnh sửa để sửa tiêu đề, ảnh, lịch trình, điểm nhấn…"
+            ? "Lưu trên Supabase — khách thấy thay đổi ngay (Realtime). Chỉnh sửa: tiêu đề, ảnh, lịch trình… Tour tạo mới có nút Xóa tour ngay trên thẻ."
             : "Thay đổi lưu trên máy chủ và áp dụng cho mọi khách truy cập ngay khi họ tải lại trang.") +
         "</p>" +
         (REMOTE ? '<button class="btn btn--primary btn--sm" type="button" data-tour-add>' + icon("plus", 14) + " Thêm tour</button>" : "") +
@@ -1117,7 +1119,12 @@
   }
 
   async function deleteTour(id) {
-    if (!window.confirm("Xóa tour này khỏi Supabase? Đơn đã đặt vẫn giữ lại mã tour.")) return;
+    if (!REMOTE || !id) return;
+    if (!window.confirm(
+      "XÓA VĨNH VIỄN tour này khỏi Supabase?\n\n" +
+      "Nội dung, giá và thư viện ảnh của tour sẽ mất (không khôi phục được). " +
+      "Đơn đã đặt vẫn giữ lại mã tour. Khách sẽ không còn thấy tour này nữa."
+    )) return;
     try {
       await api("/tours/" + encodeURIComponent(id), { method: "DELETE" });
       state.tours = state.tours.filter(function (t) { return t.id !== id; });
@@ -1487,6 +1494,9 @@
 
       if (e.target.closest("[data-sub-export]")) { exportSubscribers(); return; }
       if (e.target.closest("[data-tour-add]")) { openTourEditor(null); return; }
+
+      const delTourCard = e.target.closest("[data-tour-delete-card]");
+      if (delTourCard) { deleteTour(delTourCard.dataset.tourDeleteCard); return; }
 
       const card = e.target.closest("[data-tour-card]");
       if (!card) return;

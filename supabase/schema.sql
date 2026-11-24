@@ -622,6 +622,7 @@ grant execute on function public.subscribe_newsletter(text) to anon, authenticat
 
 do $$ begin alter publication supabase_realtime add table public.tours; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table public.bookings; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.tours; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table public.tour_overrides; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table public.tour_content; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table public.messages; exception when duplicate_object then null; end $$;
